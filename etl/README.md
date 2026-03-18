@@ -193,7 +193,7 @@ CREATE MACRO mask_set(i) AS floor(i / 28); -- used to generate bit mask set
 CREATE MACRO col_mask(i)  AS (mask_set(i)::UINT32 << 28) + (1 << (i - (mask_set(i) * 28))::UINT32); -- convert a index into a mask
 ```
 
-This mask can then be used on the client to calculate the column selection by applying the & bitwise operator to the mask of every selected column.
+This mask can then be used on the client to calculate the column selection by applying the | bitwise operator to the mask of every selected column.
 
 For example if the user selected the first three columns
 
