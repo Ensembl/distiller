@@ -2,7 +2,7 @@
   "name": "data-distiller",
   "version": "0.0.0",
   "description": "Ensembl's interface for querying and tabular display of various data",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
