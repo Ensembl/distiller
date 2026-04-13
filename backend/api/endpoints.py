@@ -1,17 +1,19 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
 
+from core.config import get_config
+
 router = APIRouter()
 
-@router.get("/test")
-def hello():
-    return "hello"
+config = get_config()
+
 
 @router.get("/datasets")
 def list_datasets():
-    return "TBA"
+    return config
 
 @router.get("/{dataset}/dataset-config")
 def dataset_config(dataset: str):
+    #find dataset by id
     return "TBA"
 
 @router.get("/{dataset}/records")
