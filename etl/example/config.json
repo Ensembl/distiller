@@ -2,13 +2,17 @@
     "filters":[
         {
             "id":"id",
+            "target_column":"id",
             "label":"ID",
+            "title":"ID",
             "type" : "select",
             "match" : "exact"
         },
         {
             "id":"class",
+            "target_column":"class",
             "label":"Class",
+            "title":"Class",
             "type" : "select_list",
             "filter_labels":"lower(class)"
         }
@@ -20,9 +24,15 @@
             "source":"test",
             "url_name":"test",
             "include_remaining_columns" : true,
-            "filters" : [
-                { "filter_id" : "id" },
-                { "filter_id" : "class" }
+            "filter_groups" : [
+                {
+                    "group_id": "default",
+                    "group_label": "Filters",
+                    "filters":[
+                        { "id" : "id" },
+                        { "id" : "class" }
+                    ]
+                }
             ],
               "columns":[
                   { "name": "id", "enabled":true },

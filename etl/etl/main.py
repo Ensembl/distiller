@@ -16,10 +16,10 @@ except ImportError:
 from pydantic import TypeAdapter
 
 from etl.cli import get_cli_args
-from etl.config import validate_config, validate_dataset
+from etl.config import validate_dataset
 from etl.database import Database, DatabaseConfig
 from etl.dataset import DatasetsProcessor
-from etl.models import Config, Dataset
+from etl.models import Config, Dataset, validate_config
 from etl.transform import Transform
 from etl.views import ViewsProcessor
 
@@ -61,10 +61,10 @@ def validate_configs(config: Any, data: Any, schemas: str) -> None:
     """
     Validate config and dataset
     """
-    config_schema = _load_schema(schemas, CONFIG_SCHEMA_FILE, "config")
+    #config_schema = _load_schema(schemas, CONFIG_SCHEMA_FILE, "config")
     data_schema = _load_schema(schemas, DATA_SCHEMA_FILE, "data")
     # validate config
-    validate_config(config, config_schema)
+    validate_config(config)
     # validate dataset
     validate_dataset(data, data_schema)
 
@@ -97,6 +97,7 @@ def run_etl() -> None:
     print("Stage 1: Validating ETL configurations")
     validate_configs(config_dict, data_dict, cli.schema)
     datasets = TypeAdapter(list[Dataset]).validate_python(data_dict)
+
     configs = Config.model_validate(config_dict)
 
     print("Stage 2: Running first pass ETL")

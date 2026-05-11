@@ -8,7 +8,7 @@ supported_filters = [
     "select_in",
     "select_list",
     "range",
-    "location",
+    "regex",
     "list_contains",
 ]
 

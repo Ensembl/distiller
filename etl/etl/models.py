@@ -5,42 +5,34 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 # ── Filter models ──
 
-
-class SingleQueryColumn(BaseModel):
+class RegexField(BaseModel):
     column: str
+    regex_capture_group: str
+    match: Literal[">", "<", ">=", "<=", "="]
 
-
-class LocationQueryColumns(BaseModel):
-    region: str
-    start: str
-    end: str
-    strand: str | None = None
-    bin: str | None = None
-
+class RegexQueryConfig(BaseModel):
+    fields: list[RegexField]
 
 class Filter(BaseModel):
     id: str
+    target_column: str
     label: str
+    label: str | None = None
+    title: str
     type: Literal[
-        "select_list", "select", "select_in", "list_contains", "range", "location"
+        "select_list", "select", "select_in", "list_contains", "range", "regex"
     ]
     match: Literal["exact", "prefix"] | None = None
     filter_labels: str | None = None
     min: float | None = None
     max: float | None = None
-    query_columns: SingleQueryColumn | LocationQueryColumns | None = None
+    config: RegexQueryConfig | None = None
     regex: str | None = None
-
-    @property
-    def target_column(self) -> str:
-        """The actual column name to query against."""
-        if isinstance(self.query_columns, SingleQueryColumn):
-            return self.query_columns.column
-        return self.id
+    
 
 
 # ── View models ──
@@ -52,6 +44,8 @@ class ViewFilter(BaseModel):
     # Attributes we copy across from the Filter object definition above
     # which is why we're not very tight on the defs
     label: str | None = None
+    title: str
+    example: str | None = None
     type: (
         Literal[
             "select_list", "select", "select_in", "list_contains", "range", "location"
@@ -63,7 +57,7 @@ class ViewFilter(BaseModel):
     max: float | None = None
     rank: int | None = None
     filter_values: list[dict[str, str]] | None = None
-    query_columns: SingleQueryColumn | LocationQueryColumns | None = None
+    config:  RegexQueryConfig | None = None
     regex: str | None = None
 
     def copy_from_filter(self, filter: Filter) -> None:
@@ -98,9 +92,9 @@ class View(BaseModel):
     name: str
     source: str
     include_remaining_columns: bool = False
-    filters: list[Union[ViewFilterGroup, ViewFilter]]
+    filter_groups: list[ViewFilterGroup]
     columns: list[ViewColumn]
-
+    
 
 # ── Columns ──
 
@@ -123,15 +117,24 @@ class Config(BaseModel):
     views: list[View]
     columns: dict[str, dict[str, Column]] = {}  # keyed by view id
 
-    def get_filter(self, filter_id: str) -> Filter:
-        for f in self.filters:
-            if f.id == filter_id:
-                return f
-        raise KeyError(f"Unknown filter id: {filter_id!r}")
+    @model_validator(mode='before')
+    @classmethod
+    def copy_filters_to_filter_groups(cls, data: Any) -> Any:
+        filter_dict = {d["id"]:d for d in data["filters"]}
+        
+        for v in data["views"]:
+            for g in v["filter_groups"]:
+                for f in g["filters"]:
+                    if f["id"] in filter_dict.keys():
+                        f = filter_dict[f["id"]]
+                    else:
+                        raise ValueError(f"{f['id']} not found in filters!")
 
+def validate_config(config_data:dict[str, Any]) -> bool:
+    Config.model_validate(config_data)
+    return True
 
 # ── Dataset models (data.json) ──
-
 
 class CreateColumn(BaseModel):
     name: str

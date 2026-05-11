@@ -7,13 +7,17 @@ class Columns(BaseModel):
     is_sortable:bool
     enabled_by_default:bool
     mask:int
+
+class FilterOption(BaseModel):
     
+
 class Filter(BaseModel):
     id:str
     label:str
     filter_type:str
     match_type:str
     regex:str
+    filter_option:[]
     min:int
     max:int
     rank:int

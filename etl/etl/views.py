@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 
 import duckdb
@@ -8,8 +9,7 @@ from etl.models import (
     Column,
     Dataset,
     Filter,
-    LocationQueryColumns,
-    SingleQueryColumn,
+    RegexQueryConfig,
     View,
     ViewColumn,
     ViewFilter,
@@ -151,7 +151,6 @@ class ViewsProcessor:
         distinct_sql = f"""
 SELECT DISTINCT "{filter.target_column}" AS value, {filter.filter_labels} AS label
 from '{parquet}'
-WHERE "{filter.target_column}" IS NOT NULL
 ORDER BY label ASC
 """
         logger.debug(distinct_sql)
@@ -181,34 +180,28 @@ ORDER BY label ASC
 
             for vf in filters_to_check:
                 filter_def = self.get_filter_definition(view, vf)
-                qc = filter_def.query_columns
-                if qc is None:
-                    # No explicit query_columns — filter.id is the default
-                    # column but we only validate when explicitly specified
+                rc = filter_def.config
+                if rc is None:
+                    # config is only used for complex filter types such as regex
                     continue
-                elif isinstance(qc, SingleQueryColumn):
-                    if qc.column not in available_columns:
+                elif isinstance(rc, RegexQueryConfig):
+                    regex = re.compile(filter_def.regex)
+                    
+                    registered_regex_keys = [field.regex_capture_group for field in rc.fields]
+                    regex_keys = reg.groupindex.keys()
+                    if len(registered_regex_keys) != len(regex_keys):
                         raise FilterError(
-                            f"Filter '{filter_def.id}' references column "
-                            f"'{qc.column}' which does not exist in "
-                            f"source '{view.source}'"
+                            f"Filter '{filter_def.id}' regex role "
+                            "Registered REGEX keys does not match found REGEX keys,"
+                            f"registered: {len(registered_regex_keys)}, "
+                            f"found: {len(regex_keys)}"
                         )
-                elif isinstance(qc, LocationQueryColumns):
-                    for role in ("region", "start", "end"):
-                        col_name = getattr(qc, role)
-                        if col_name not in available_columns:
+
+                    for pattern_name in regex_keys:
+                        if pattern_name not in registered_regex_keys:
                             raise FilterError(
-                                f"Filter '{filter_def.id}' location role "
-                                f"'{role}' references column '{col_name}' "
-                                f"which does not exist in source '{view.source}'"
-                            )
-                    for role in ("strand", "bin"):
-                        col_name = getattr(qc, role)
-                        if col_name is not None and col_name not in available_columns:
-                            raise FilterError(
-                                f"Filter '{filter_def.id}' location role "
-                                f"'{role}' references column '{col_name}' "
-                                f"which does not exist in source '{view.source}'"
+                                f"Filter '{filter_def.id}' regex role "
+                                f"'{pattern_name}' was not registered"
                             )
 
     def _get_column_override(self, view_id: str, column_name: str) -> Column | None:

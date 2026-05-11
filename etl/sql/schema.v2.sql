@@ -23,13 +23,15 @@ CREATE TABLE view_filter (
     view_filter_id INTEGER PRIMARY KEY,
     view_filter_group_id INTEGER NOT NULL,
     "id" VARCHAR NOT NULL,
+    "title" VARCHAR NOT NULL,
+    "example" VARCHAR,
     "label" VARCHAR NOT NULL,
     filter_type VARCHAR NOT NULL,
     match_type VARCHAR,
     rank INTEGER NOT NULL,
     "min" DOUBLE,
     "max" DOUBLE,
-    query_columns JSON,
+    config JSON,
     regex VARCHAR,
     UNIQUE("id"),
     FOREIGN KEY (view_filter_group_id) REFERENCES view_filter_group(view_filter_group_id)
@@ -87,7 +89,7 @@ SELECT
     vf.match_type,
     vf."min",
     vf."max",
-    vf.query_columns,
+    vf.config,
     vf.regex
 FROM view_filter vf
     JOIN view_filter_group vfg ON vf.view_filter_group_id = vfg.view_filter_group_id
