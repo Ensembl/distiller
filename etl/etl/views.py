@@ -9,7 +9,7 @@ from etl.models import (
     Column,
     Dataset,
     Filter,
-    RegexQueryConfig,
+    RegexExtras,
     View,
     ViewColumn,
     ViewFilter,
@@ -174,15 +174,19 @@ ORDER BY label ASC
 
             for vf in group.filters:
                 filter_def = self.get_filter_definition(view, vf)
-                rc = filter_def.config
-                if rc is None:
+                extra = filter_def.extras
+                if extra is None:
                     # config is only used for complex filter types such as regex
                     continue
-                elif isinstance(rc, RegexQueryConfig):
+                elif isinstance(extra, dict):
+                    raise FilterError(
+                            f"Error with extras, not parsed to a model '{extra}'"
+                    )
+                elif isinstance(extra, RegexExtras):
                     regex = re.compile(filter_def.regex)
                     
-                    registered_regex_keys = [field.regex_capture_group for field in rc.fields]
-                    regex_keys = reg.groupindex.keys()
+                    registered_regex_keys = [field.regex_name for field in extra.fields]
+                    regex_keys = regex.groupindex.keys()
                     if len(registered_regex_keys) != len(regex_keys):
                         raise FilterError(
                             f"Filter '{filter_def.id}' regex role "

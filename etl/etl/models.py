@@ -11,11 +11,13 @@ from pydantic import BaseModel, model_validator
 
 class RegexField(BaseModel):
     column: str
-    regex_capture_group: str
+    regex_name: str
     match: Literal[">", "<", ">=", "<=", "="]
 
-class RegexQueryConfig(BaseModel):
+
+class RegexExtras(BaseModel):
     fields: list[RegexField]
+
 
 class Filter(BaseModel):
     id: str
@@ -30,7 +32,7 @@ class Filter(BaseModel):
     filter_labels: str | None = None
     min: float | None = None
     max: float | None = None
-    config: RegexQueryConfig | None = None
+    extras: RegexExtras | None = None
     regex: str | None = None
     
 
@@ -48,7 +50,7 @@ class ViewFilter(BaseModel):
     example: str | None = None
     type: (
         Literal[
-            "select_list", "select", "select_in", "list_contains", "range", "location"
+            "select_list", "select", "select_in", "list_contains", "range", "regex"
         ]
         | None
     ) = None
@@ -57,13 +59,14 @@ class ViewFilter(BaseModel):
     max: float | None = None
     rank: int | None = None
     filter_values: list[dict[str, str]] | None = None
-    config:  RegexQueryConfig | None = None
+    extras:  RegexExtras | None = None
     regex: str | None = None
 
     def copy_from_filter(self, filter: Filter) -> None:
         for key, value in filter.model_dump(exclude_none=True).items():
             if hasattr(self, key):
                 setattr(self, key, value)
+        self.extras = filter.extras
 
 
 class ViewFilterGroup(BaseModel):
@@ -120,7 +123,7 @@ class Config(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def copy_filters_to_filter_groups(cls, data: Any) -> Any:
-        print("---------- triggered")
+
         filter_dict = {d["id"]:d for d in data["filters"]}
         
         for v in data["views"]:
@@ -129,7 +132,6 @@ class Config(BaseModel):
                     f_id = g["filters"][i]["id"]
                     if f_id in filter_dict.keys():
                         g["filters"][i] = filter_dict[f_id]
-                        print("----_____----- found")
                     else:
                         raise ValueError(f"{f['id']} not found in filters!")
         print(data["views"][0]["filter_groups"][0]["filters"])

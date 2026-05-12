@@ -5,11 +5,19 @@ from typing import Any, Self
 
 import duckdb
 
-from etl.models import View, ViewFilterGroup
+from etl.models import View, ViewFilterGroup, RegexExtras
 
 logger = logging.getLogger(__name__)
 
 schema_version = "v2"
+
+REGEX_MACRO_TEMPLATE = """
+CREATE OR REPLACE MACRO regex_{}_filter(table_name, {}) AS TABLE(
+    SELECT *
+    FROM query_table(table_name)
+    WHERE {}
+)
+"""
 
 
 class BaseDatabase:
@@ -52,6 +60,27 @@ class DatabaseConfig(BaseDatabase):
             logging.info("Finished")
         self.generate_release()
 
+    def write_regex_macro(self, filter_id:str , extras: RegexExtras) -> bool:
+        conn = self.conn
+        inputs:[str] = []
+        matches:[str] = []
+        
+        for field in extras.fields:
+            modifier = ""
+            if field.match is not "=": #force column to be a int when comparing size
+                modifier = "::int"
+
+            inputs.append(f"in_{field.regex_name}")
+            matches.append(f"{field.column}{modifier} {field.match} in_{field.regex_name}")
+        
+        macro = REGEX_MACRO_TEMPLATE.format(filter_id, ",".join(inputs), " AND ".join(matches))
+        print("Creating REGEX macro -------------------")
+        print(macro)
+        print("------------------------------")
+        conn.execute(macro)
+            
+        return True
+
     def write_view(self, view: View) -> None:
         conn = self.conn
         view_db_id = self.next_id("view")
@@ -79,10 +108,14 @@ class DatabaseConfig(BaseDatabase):
                 # Generate a unique DB id by prefixing with the view id
                 db_filter_id = f"{view.id}_{view_filter.id}"
 
-                rc = view_filter.config
+                extras = view_filter.extras
                 if view_filter.type == "regex":
-                    print("TODO create macro")
-                    # todo create macro
+                    self.write_regex_macro(db_filter_id, extras)
+                
+                if extras:
+                    extras_dump = extras.model_dump(exclude_none=True)
+                else:
+                    extras_dump = "{}"
 
                 filter_params = (
                     view_filter_db_id,
@@ -96,7 +129,7 @@ class DatabaseConfig(BaseDatabase):
                     view_filter.rank,
                     view_filter.min,
                     view_filter.max,
-                    rc,
+                    extras_dump,
                     view_filter.regex,
                 )
                 conn.execute(filter_sql, filter_params)

@@ -15,6 +15,34 @@
             "title":"Class",
             "type" : "select_list",
             "filter_labels":"lower(class)"
+        },
+        {
+            "id":"location",
+            "target_column":"location",
+            "label":"Location",
+            "title":"Location",
+            "example":"1:100-10000",
+            "regex":"(?P<region>[^:]+):(?P<start>\\d+)-(?P<end>\\d+)",
+            "type":"regex",
+            "extras": {
+                "fields":[
+                    {
+                        "column":"region",
+                        "regex_name":"region",
+                        "match":"="
+                    },
+                    {
+                        "column":"start",
+                        "regex_name":"start",
+                        "match":">="
+	               },
+	               {
+                        "column":"stop",
+                        "regex_name":"end",
+                        "match":"<="
+	               }
+                ]
+            }
         }
     ],
     "views":[
@@ -30,7 +58,8 @@
                     "group_label": "Filters",
                     "filters":[
                         { "id" : "id" },
-                        { "id" : "class" }
+                        { "id" : "class" },
+                        { "id": "location"}
                     ]
                 }
             ],
