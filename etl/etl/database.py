@@ -64,7 +64,7 @@ class DatabaseConfig(BaseDatabase):
 
         # Write filter groups and their filters
         # After view processing, view.filters is a list[ViewFilterGroup]
-        for group in view.filters:
+        for group in view.filter_groups:
             assert isinstance(group, ViewFilterGroup)
             group_db_id = self.next_id("view_filter_group")
             group_sql = "INSERT INTO view_filter_group (view_filter_group_id, view_id, id, label, rank) VALUES (?,?,?,?,?)"  # noqa: E501
@@ -75,11 +75,11 @@ class DatabaseConfig(BaseDatabase):
 
             for view_filter in group.filters:
                 view_filter_db_id = self.next_id("view_filter")
-                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, title, example, filter_type, match_type, rank, min, max, config, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
+                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, title, example, filter_type, match_type, rank, min, max, config, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
                 # Generate a unique DB id by prefixing with the view id
-                db_filter_id = f"{view.id}_{view_filter.filter_id}"
+                db_filter_id = f"{view.id}_{view_filter.id}"
 
-                rc = view_filter.regex_config
+                rc = view_filter.config
                 if view_filter.type == "regex":
                     print("TODO create macro")
                     # todo create macro

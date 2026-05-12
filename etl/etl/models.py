@@ -39,7 +39,7 @@ class Filter(BaseModel):
 
 
 class ViewFilter(BaseModel):
-    filter_id: str
+    id: str
 
     # Attributes we copy across from the Filter object definition above
     # which is why we're not very tight on the defs
@@ -120,15 +120,20 @@ class Config(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def copy_filters_to_filter_groups(cls, data: Any) -> Any:
+        print("---------- triggered")
         filter_dict = {d["id"]:d for d in data["filters"]}
         
         for v in data["views"]:
             for g in v["filter_groups"]:
-                for f in g["filters"]:
-                    if f["id"] in filter_dict.keys():
-                        f = filter_dict[f["id"]]
+                for i in range(len(g["filters"])):
+                    f_id = g["filters"][i]["id"]
+                    if f_id in filter_dict.keys():
+                        g["filters"][i] = filter_dict[f_id]
+                        print("----_____----- found")
                     else:
                         raise ValueError(f"{f['id']} not found in filters!")
+        print(data["views"][0]["filter_groups"][0]["filters"])
+        return data
 
 def validate_config(config_data:dict[str, Any]) -> bool:
     Config.model_validate(config_data)

@@ -61,9 +61,9 @@ class ViewsProcessor:
             for view in self.views:
                 dataset = self.get_dataset(view.source)
                 self.validate_query_columns(view, dataset)
-                normalised_groups = self.normalise_to_groups(view)
+                #normalised_groups = self.normalise_to_groups(view)
                 group_rank = 1
-                for group in normalised_groups:
+                for group in view.filter_groups:
                     group.rank = group_rank
                     group_rank += 1
                     filter_rank = 1
@@ -78,7 +78,6 @@ class ViewsProcessor:
                     if len(group.filters) == 1 and group.filters[0].label:
                         group.group_label = group.filters[0].label
                 # Replace view.filters with the normalised groups
-                view.filters = normalised_groups
                 self.populate_additional_columns(view)
                 self.write_view(view)
 
@@ -130,7 +129,7 @@ class ViewsProcessor:
 
     def get_filter_definition(self, view: View, view_filter: ViewFilter) -> Filter:
         for filter in self.filters:
-            if filter.id == view_filter.filter_id:
+            if filter.id == view_filter.id:
                 return filter
         raise FilterError(
             f"Cannot find the filter '{view_filter.filter_id}' in the view '{view.name}'"  # noqa: E501
@@ -171,14 +170,9 @@ ORDER BY label ASC
             c.name for c in dataset.columns if c.name is not None
         }
 
-        for entry in view.filters:
-            filters_to_check: list[ViewFilter] = []
-            if isinstance(entry, ViewFilterGroup):
-                filters_to_check = entry.filters
-            elif isinstance(entry, ViewFilter):
-                filters_to_check = [entry]
+        for group in view.filter_groups:
 
-            for vf in filters_to_check:
+            for vf in group.filters:
                 filter_def = self.get_filter_definition(view, vf)
                 rc = filter_def.config
                 if rc is None:
