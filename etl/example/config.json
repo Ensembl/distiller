@@ -43,6 +43,15 @@
 	               }
                 ]
             }
+        },
+        {
+            "id":"start",
+            "target_column":"start",
+            "label":"Start",
+            "title":"Start",
+            "type" : "range",
+            "min":9,
+            "max":1001
         }
     ],
     "views":[
@@ -60,6 +69,13 @@
                         { "id" : "id" },
                         { "id" : "class" },
                         { "id": "location"}
+                    ]
+                },
+                {
+                    "group_id":"extras",
+                    "group_label":"Extras",
+                    "filters":[
+                        {"id": "start" }
                     ]
                 }
             ],

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
 
 from core.config import get_config
+from services.dataset import fetch_config
 
 router = APIRouter()
 
@@ -13,8 +14,7 @@ def list_datasets():
 
 @router.get("/{dataset}/dataset-config")
 def dataset_config(dataset: str):
-    #find dataset by id
-    return "TBA"
+    return fetch_config(dataset)
 
 @router.get("/{dataset}/records")
 def get_dataset_records(dataset: str):

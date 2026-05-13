@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ValidationError
 
-class Columns(BaseModel):
+class Column(BaseModel):
     name:str
     label:str
     style:str
@@ -9,18 +9,26 @@ class Columns(BaseModel):
     mask:int
 
 class FilterOption(BaseModel):
-    
-
-class Filter(BaseModel):
-    id:str
     label:str
+    value:str 
+
+class FilterCore(BaseModel):
+    id:str
+    tite:str
+    label:str
+    example:str
     filter_type:str
-    match_type:str
+    rank:int
+
+class FilterRegex(FilterCore):
     regex:str
-    filter_option:[]
+
+class FilterSelect(FilterCore):
+    options:list[FilterOption]
+    
+class RangeFilter(FilterCore):
     min:int
     max:int
-    rank:int
 
 class FilterGroup(BaseModel):
     id:str

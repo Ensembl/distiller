@@ -31,7 +31,7 @@ CREATE TABLE view_filter (
     rank INTEGER NOT NULL,
     "min" DOUBLE,
     "max" DOUBLE,
-    config JSON,
+    extras JSON,
     regex VARCHAR,
     UNIQUE("id"),
     FOREIGN KEY (view_filter_group_id) REFERENCES view_filter_group(view_filter_group_id)
@@ -89,7 +89,7 @@ SELECT
     vf.match_type,
     vf."min",
     vf."max",
-    vf.config,
+    vf.extras,
     vf.regex
 FROM view_filter vf
     JOIN view_filter_group vfg ON vf.view_filter_group_id = vfg.view_filter_group_id
@@ -116,6 +116,56 @@ FROM view_column vc
     JOIN "view" v ON vc.view_id = v.view_id
 ORDER BY v.view_id, vc.rank;
 
+-- Config payload views
+CREATE OR REPLACE VIEW filter_values_as_json AS
+SELECT
+{
+  "label":label,
+  "value":value
+}::json as values_json,
+view_filter_id
+FROM view_filter_value;
+
+CREATE OR REPLACE VIEW filters_as_json AS SELECT {
+  "id":vf.id,
+  "title":vf.title,
+  "label":vf.label,
+  "type":vf.filter_type,
+  "example":vf.example,
+  "min":vf.min,
+  "max":vf.max,
+  "regex":vf.regex,
+  "options":ARRAY(SELECT values_json FROM filter_values_as_json WHERE view_filter_id = vf.view_filter_id )
+}::json as filter_json, view_filter_group_id from view_filter as vf;
+
+CREATE OR REPLACE VIEW filter_groups_as_json AS SELECT {
+  "id":vfg.id,
+  "label":vfg.label,
+  "rank":vfg.rank,
+  "filters":ARRAY(SELECT filter_json FROM filters_as_json where view_filter_group_id = vfg.view_filter_group_id)
+}::json as group_json,
+vfg.view_id as view_id
+from view_filter_group as vfg;
+
+CREATE OR REPLACE VIEW columns_as_json AS SELECT 
+{
+"name":name,
+"label":label,
+"style":type, 
+"is_sortable":sortable,
+"enable_by_default":enable_by_default, 
+"mask":mask }::json as col_json,
+view_id
+FROM view_column
+WHERE hidden=false;
+
+CREATE OR REPLACE VIEW dataset_config AS
+SELECT {
+"columns":ARRAY(SELECT col_json FROM columns_as_json where view_id = view.view_id), 
+"filter_groups":ARRAY(SELECT group_json FROM filter_groups_as_json where view_id = view.view_id)
+}::json AS json_config,
+view_id
+FROM view;
 
 -- Macros
 CREATE MACRO mask_set(i) AS floor(i / 28); -- used to generate bit mask set

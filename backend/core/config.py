@@ -32,3 +32,12 @@ def get_config(override_config_path = None) -> Config:
         raise ConfigError("Unable to load config")
     except ValidationError as ve:
         raise ConfigError("Validation error")
+
+def get_dataset_path(id:str) -> str | None:
+    config = get_config()
+    
+    for c in config.datasets:
+        if c.id == id:
+            return c.path
+    return None
+            
