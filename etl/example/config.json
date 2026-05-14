@@ -32,12 +32,12 @@
                         "match":"="
                     },
                     {
-                        "column":"start",
+                        "column":"stop",
                         "regex_name":"start",
                         "match":">="
 	               },
 	               {
-                        "column":"stop",
+                        "column":"start",
                         "regex_name":"end",
                         "match":"<="
 	               }

@@ -34,3 +34,11 @@ def fetch_config(dataset_id):
             }
 
     return payload
+
+
+def records(dataset:str):
+    # Get dataset
+    # build column list
+    # build filters 
+    # build sort
+    return "WIP"
