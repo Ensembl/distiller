@@ -25,7 +25,7 @@ CREATE TABLE view_filter (
     "id" VARCHAR NOT NULL,
     "title" VARCHAR NOT NULL,
     "example" VARCHAR,
-    "label" VARCHAR NOT NULL,
+    "label" VARCHAR,
     filter_type VARCHAR NOT NULL,
     match_type VARCHAR,
     rank INTEGER NOT NULL,
@@ -141,23 +141,22 @@ CREATE OR REPLACE VIEW filters_as_json AS SELECT {
 CREATE OR REPLACE VIEW filter_groups_as_json AS SELECT {
   "id":vfg.id,
   "label":vfg.label,
-  "rank":vfg.rank,
   "filters":ARRAY(SELECT filter_json FROM filters_as_json where view_filter_group_id = vfg.view_filter_group_id)
-}::json as group_json,
-vfg.view_id as view_id
-from view_filter_group as vfg;
+}::json AS group_json,
+vfg.view_id AS view_id
+FROM view_filter_group AS vfg
+ORDER BY vfg.rank ASC;
 
 CREATE OR REPLACE VIEW columns_as_json AS SELECT 
 {
-"name":name,
 "label":label,
-"style":type, 
 "is_sortable":sortable,
 "enable_by_default":enable_by_default, 
-"mask":mask }::json as col_json,
+}::json as col_json,
 view_id
 FROM view_column
-WHERE hidden=false;
+WHERE hidden=false
+ORDER BY rank ASC;
 
 CREATE OR REPLACE VIEW dataset_config AS
 SELECT {
