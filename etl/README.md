@@ -114,66 +114,17 @@ uv run ruff check --fix etl/ tests/
 
 ```mermaid
 erDiagram
-    view {
-        INTEGER view_id PK
-        VARCHAR id UK
-        VARCHAR url_name UK
-        VARCHAR name
-        VARCHAR source
-    }
+    view_filter {integer view_filter_id integer view_filter_group_id varchar id varchar title varchar example varchar label varchar filter_type varchar match_type integer rank double min double max json extras varchar regex}
+    view_filter_value {integer view_filter_id varchar value varchar label}
+    view {integer view_id varchar id varchar url_name varchar name varchar source}
+    view_column {integer view_column_id integer view_id varchar name varchar label varchar type boolean sortable varchar url varchar delimiter boolean hidden integer rank uinteger mask boolean enable_by_default}
+    view_filter_group {integer view_filter_group_id integer view_id varchar id varchar label integer rank}
+    release {varchar release_label varchar schema_version}
+    view ||--o{ view_column : "view_id"
+    view ||--o{ view_filter_group : "view_id"
+    view_filter ||--o{ view_filter_value : "view_filter_id"
+    view_filter_group ||--o{ view_filter : "view_filter_group_id"
 
-    view_column {
-        INTEGER view_column_id PK
-        INTEGER view_id FK
-        VARCHAR name
-        VARCHAR label
-        VARCHAR type
-        BOOLEAN sortable
-        VARCHAR url
-        VARCHAR delimiter
-        BOOLEAN hidden
-        INTEGER rank
-        UINT32  mask
-        BOOLEAN enable_by_default
-    }
-
-    view_filter_group {
-        INTEGER view_filter_group_id PK
-        INTEGER view_id FK
-        VARCHAR id
-        VARCHAR label
-        INTEGER rank
-    }
-
-    view_filter {
-        INTEGER view_filter_id PK
-        INTEGER view_filter_group_id FK
-        VARCHAR id UK
-        VARCHAR label
-        VARCHAR filter_type
-        VARCHAR match_type
-        INTEGER rank
-        DOUBLE min
-        DOUBLE max
-        JSON query_columns
-        VARCHAR regex
-    }
-
-    view_filter_value {
-        INTEGER view_filter_id FK
-        VARCHAR value
-        VARCHAR label
-    }
-
-    release {
-        VARCHAR release_label
-        VARCHAR schema_version
-    }
-
-    view ||--|{ view_column : view_id
-    view ||--|{ view_filter_group : view_id
-    view_filter_group ||--|{ view_filter : view_filter_group_id
-    view_filter ||--|{ view_filter_value : view_filter_id
 ```
 
 The schema also includes two convenience views:
