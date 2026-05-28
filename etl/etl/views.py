@@ -14,6 +14,7 @@ from etl.models import (
     ViewColumn,
     ViewFilter,
     ViewFilterGroup,
+    FIXED_LIST_FILTER_TYPE
 )
 
 logger = logging.getLogger(__name__)
@@ -111,7 +112,7 @@ class ViewsProcessor:
         conn: duckdb.DuckDBPyConnection,
     ) -> None:
         filter_definition = self.get_filter_definition(view, view_filter)
-        if filter_definition.type == "select_list":
+        if filter_definition.type == FIXED_LIST_FILTER_TYPE:
             filter_values = self.distinct_filter_values(
                 filter_definition, parquet, conn
             )

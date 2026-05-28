@@ -5,7 +5,7 @@ from typing import Any, Self
 
 import duckdb
 
-from etl.models import View, ViewFilterGroup, RegexExtras
+from etl.models import View, ViewFilterGroup, RegexExtras, FIXED_LIST_FILTER_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class DatabaseConfig(BaseDatabase):
                 )
                 conn.execute(filter_sql, filter_params)
                 if (
-                    view_filter.type == "select_list"
+                    view_filter.type == FIXED_LIST_FILTER_TYPE
                     and view_filter.filter_values is not None
                 ):
                     for value in view_filter.filter_values:

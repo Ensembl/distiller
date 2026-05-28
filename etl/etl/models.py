@@ -13,6 +13,8 @@ SUPPORTED_FILTERS = Literal[
         "fixed_list", "match", "prefix", "user_list", "range", "regex"
     ]
 
+FIXED_LIST_FILTER_TYPE = "fixed_list"
+
 SUPPORTED_COLUMNS = Literal["link", "array-link", "labelled-link", "string"] 
 
 class RegexField(BaseModel):

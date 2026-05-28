@@ -1,16 +1,11 @@
 import os
 from typing import Any
 
+from .models import SUPPORTED_FILTERS
+
 from jsonschema import validate
 
-supported_filters = [
-    "select",
-    "select_in",
-    "select_list",
-    "range",
-    "regex",
-    "list_contains",
-]
+supported_filters = SUPPORTED_FILTERS
 
 
 class ConfigError(Exception):

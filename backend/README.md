@@ -120,13 +120,13 @@ Returns the configuration details for a selected dataset
           "id": "test_view_id",
           "title": "ID",
           "label": "ID",
-          "type": "select"
+          "type": "match"
         },
         {
           "id": "test_view_class",
           "title": "Class",
           "label": "Class",
-          "type": "select_list",
+          "type": "fixed_list",
           "options": [
             {
               "label": "class a",
