@@ -27,7 +27,6 @@ CREATE TABLE view_filter (
     "example" VARCHAR,
     "label" VARCHAR,
     filter_type VARCHAR NOT NULL,
-    match_type VARCHAR,
     rank INTEGER NOT NULL,
     "min" DOUBLE,
     "max" DOUBLE,
@@ -86,7 +85,6 @@ SELECT
     vf."id" AS filter_name,
     vf."label" AS filter_label,
     vf.filter_type,
-    vf.match_type,
     vf."min",
     vf."max",
     vf.extras,
@@ -116,7 +114,7 @@ FROM view_column vc
     JOIN "view" v ON vc.view_id = v.view_id
 ORDER BY v.view_id, vc.rank;
 
--- Config payload views
+-- Config payload views -----------------------------------------
 CREATE OR REPLACE VIEW filter_values_as_json AS
 SELECT
 {
@@ -149,6 +147,7 @@ ORDER BY vfg.rank ASC;
 
 CREATE OR REPLACE VIEW columns_as_json AS SELECT 
 {
+"id":view_column_id,
 "label":label,
 "is_sortable":sortable,
 "enable_by_default":enable_by_default, 

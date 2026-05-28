@@ -26,7 +26,6 @@ A shared collection of filter definitions referenced by views. Each filter's `id
         "id": "filter_identifier",
         "label": "What you display on screen",
         "type": "select",
-        "match": "exact"
     },
     {
         "id": "custom_filter_name",
@@ -42,14 +41,14 @@ A shared collection of filter definitions referenced by views. Each filter's `id
 
 #### Filter types
 
-| `type` | `match` method | Additional attributes | Notes |
-| ------ | -------------- | --------------------- | ----- |
-| `select_list` | N/A | `filter_labels` (required) | Provide a list of distinct values with labels for user selection. `filter_labels` is a SQL expression used to generate the display label e.g. `upper(biotype)` |
-| `select` | `exact`, `prefix` (required) | `query_columns` (optional) | Specify a single value to filter by. `exact` translates to `=` in SQL. `prefix` translates to `LIKE` with the backend appending `%` |
-| `select_in` | `exact` (required) | `query_columns` (optional) | Specify multiple values to search by. Only exact matching is supported |
-| `list_contains` | N/A | `query_columns` (optional) | Perform a `LIST_CONTAINS` function to find elements within an array column |
-| `range` | N/A | `min`, `max` (optional), `query_columns` (optional) | Range query using `BETWEEN`. Specify `min` or `max` to override computed bounds |
-| `location` | N/A | `query_columns` (required), `regex` (required) | Genomic coordinate overlap query. See [location filters](#location-filters) below |
+| `type`       | Attributes        | Notes                                                                                                                                                                              |
+| ------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fixed_list` | `filter_labels`   | Provide a list of distinct values with labels for user selection. `filter_labels` is a SQL expression used to generate the display label e.g. `upper(biotype)`                     |
+| `match`      |                   | Specify a single value to filter by.  Translates to `=` in SQL. `prefix` translates to `LIKE` with the backend appending `%`                                                       |
+| prefix       |                   | Specify a single value to filter by.  Translates to `LIKE` with the backend appending `%`                                                                                          |
+| `user_list`  |                   | Specify multiple values to search by. Only exact matching is supported                                                                                                             |
+| `range`      | `min`, `max`      | Range query using `BETWEEN`. Specify `min` or `max` to override computed bounds. Column is cast to a number, so you need to ensure that this filter is only used on numeric values |
+| `regex`      | `regex`, 'extras' | Genomic coordinate overlap query. See [location filters](#location-filters) below                                                                                                  |
 
 #### `query_columns`
 
@@ -107,17 +106,23 @@ The `regex` field should use named capture groups matching the `query_columns` r
         "name": "View One",
         "source": "dataset_name",
         "include_remaining_columns": true,
-        "filters": [
-            { "filter_id": "column_one" },
-            { "filter_id": "date" },
-            {
-                "group_id": "search",
-                "group_label": "Search",
-                "filters": [
-                    { "filter_id": "name" },
-                    { "filter_id": "category" }
-                ]
-            }
+        "filter_groups": [
+	        {
+		        "group_id":"default",
+		        "group_label":"Filters",
+		        "filters":[
+			        {"id":"column_one"},
+			        {"id":"date"}
+		        ]
+	        },
+	        {
+		        "group_id":"search",
+		        "group_label":"Search",
+		        "filters": [
+		            { "id": "name" },
+                    { "id": "category" }
+		        ]
+	        }
         ],
         "columns": [
             { "name": "column_one" },
@@ -129,25 +134,25 @@ The `regex` field should use named capture groups matching the `query_columns` r
 
 Views configure what is presented to the user and differentiate content from the underlying data source.
 
-| Attribute | Required | Description |
-|-----------|----------|-------------|
-| `id` | Yes | Unique identifier for this view |
-| `url_name` | Yes | URL path segment for this view |
-| `name` | Yes | Display name shown in the interface |
-| `source` | Yes | Name of the data source (dataset) this view queries |
-| `include_remaining_columns` | No | If `true`, append all remaining source columns not listed in `columns`. Defaults to `false` |
-| `filters` | Yes | References to filters from the top-level `filters` array |
-| `columns` | Yes | Columns to display, ordered by display rank (position in list determines order) |
+| Attribute                   | Required | Description                                                                                  |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `id`                        | Yes      | Unique identifier for this view                                                              |
+| `url_name`                  | Yes      | URL path segment for this view                                                               |
+| `name`                      | Yes      | Display name shown in the interface                                                          |
+| `source`                    | Yes      | Name of the data source (dataset) this view queries                                          |
+| `include_remaining_columns` | No       | If `true`, append all remaining source columns not listed in `columns`. Defaults to `false`  |
+| `filter_groups`             | Yes      | Defines one or more filter groups. A filter group references filters that are defined above. |
+| `columns`                   | Yes      | Columns to display, ordered by display rank (position in list determines order)              |
 
 #### View filters
 
-Each entry in the view's `filters` array is either an individual filter reference or a filter group.
+Each entry in the view's `filters` array is  a filter reference.
 
 **Individual filter reference:**
 
-| Attribute | Required | Description |
-|-----------|----------|-------------|
-| `filter_id` | Yes | References a filter `id` from the top-level `filters` array |
+| Attribute | Required | Description                                                 |
+| --------- | -------- | ----------------------------------------------------------- |
+| `id`      | Yes      | References a filter `id` from the top-level `filters` array |
 
 A standalone filter is automatically wrapped into a group of size 1, where the group inherits the filter's `id` and `label`.
 
@@ -158,8 +163,8 @@ A standalone filter is automatically wrapped into a group of size 1, where the g
     "group_id": "gene_properties",
     "group_label": "Gene Properties",
     "filters": [
-        { "filter_id": "species" },
-        { "filter_id": "transcript_count" }
+        { "id": "species" },
+        { "id": "transcript_count" }
     ]
 }
 ```
@@ -170,7 +175,7 @@ A standalone filter is automatically wrapped into a group of size 1, where the g
 | `group_label` | Yes | Display label for the group |
 | `filters` | Yes | Array of individual filter references. Order determines rank within the group |
 
-Groups are a view-level concern — the same filter definitions can be grouped differently across views.
+Groups are a view-level concern — the same filter definitions can be grouped differently across filter_groups.
 
 #### Ranking
 

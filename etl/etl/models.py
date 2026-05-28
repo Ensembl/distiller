@@ -9,6 +9,12 @@ from pydantic import BaseModel, model_validator
 
 # ── Filter models ──
 
+SUPPORTED_FILTERS = Literal[
+        "fixed_list", "match", "prefix", "user_list", "range", "regex"
+    ]
+
+SUPPORTED_COLUMNS = Literal["link", "array-link", "labelled-link", "string"] 
+
 class RegexField(BaseModel):
     column: str
     regex_name: str
@@ -25,10 +31,7 @@ class Filter(BaseModel):
     label: str
     label: str | None = None
     title: str
-    type: Literal[
-        "select_list", "select", "select_in", "list_contains", "range", "regex"
-    ]
-    match: Literal["exact", "prefix"] | None = None
+    type: SUPPORTED_FILTERS
     filter_labels: str | None = None
     min: float | None = None
     max: float | None = None
@@ -49,9 +52,7 @@ class ViewFilter(BaseModel):
     title: str
     example: str | None = None
     type: (
-        Literal[
-            "select_list", "select", "select_in", "list_contains", "range", "regex"
-        ]
+        SUPPORTED_FILTERS
         | None
     ) = None
     match: Literal["exact", "prefix"] | None = None
@@ -84,7 +85,7 @@ class ViewColumn(BaseModel):
     label: str | None = None
     sortable: bool = True
     hidden: bool = False
-    type: Literal["link", "array-link", "labelled-link", "string"] = "string"
+    type: SUPPORTED_COLUMNS = "string"
     url: str | None = None
     delimiter: str | None = None
 
@@ -100,14 +101,12 @@ class View(BaseModel):
     
 
 # ── Columns ──
-
-
 class Column(BaseModel):
     name: str | None = None
     label: str | None = None
     sortable: bool = True
     hidden: bool | None = False
-    type: Literal["link", "array-link", "labelled-link", "string"] = "string"
+    type: SUPPORTED_COLUMNS = "string"
     url: str | None = None
     delimiter: str | None = None
 
@@ -139,6 +138,12 @@ class Config(BaseModel):
 
 def validate_config(config_data:dict[str, Any]) -> bool:
     Config.model_validate(config_data)
+    
+    # check required fields for filters 
+    # - regex - regex has groups. group names match extras
+    # - range has min max
+    # 
+    
     return True
 
 # ── Dataset models (data.json) ──

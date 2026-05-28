@@ -104,7 +104,7 @@ class DatabaseConfig(BaseDatabase):
 
             for view_filter in group.filters:
                 view_filter_db_id = self.next_id("view_filter")
-                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, title, example, filter_type, match_type, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
+                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, title, example, filter_type, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
                 # Generate a unique DB id by prefixing with the view id
                 db_filter_id = f"{view.id}_{view_filter.id}"
 
@@ -125,7 +125,6 @@ class DatabaseConfig(BaseDatabase):
                     view_filter.title,
                     view_filter.example,
                     view_filter.type,
-                    view_filter.match,
                     view_filter.rank,
                     view_filter.min,
                     view_filter.max,

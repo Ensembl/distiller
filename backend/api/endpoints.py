@@ -10,7 +10,10 @@ config = get_config()
 
 @router.get("/datasets")
 def list_datasets():
-    return config
+    c_payload = config.dict()
+    for d in c_payload["datasets"]:
+        del d["path"]
+    return c_payload
 
 @router.get("/{dataset}/dataset-config")
 def dataset_config(dataset: str):

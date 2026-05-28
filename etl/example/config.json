@@ -5,15 +5,14 @@
             "target_column":"id",
             "label":"ID",
             "title":"ID",
-            "type" : "select",
-            "match" : "exact"
+            "type" : "match",
         },
         {
             "id":"class",
             "target_column":"class",
             "label":"Class",
             "title":"Class",
-            "type" : "select_list",
+            "type" : "fixed_list",
             "filter_labels":"lower(class)"
         },
         {
