@@ -1,9 +1,8 @@
 export type TableColumn = {
   id: string;
   label: string;
-  sortable: boolean;
-  rank: number;
-  visible_by_default: boolean;
+  is_sortable: boolean;
+  enable_by_default: boolean;
 };
 
 export type StringData = {
