@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: distiller-backend
+  labels:
+    ensembl.platform.app.name: distiller
+spec:
+  type: ClusterIP
+  selector:
+    ensembl.platform.app.name: distiller
+  ports:
+    - port: 8000
+      protocol: TCP
+      targetPort: 8000

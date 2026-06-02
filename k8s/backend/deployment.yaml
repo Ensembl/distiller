@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distiller-backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      ensembl.platform.app.name: distiller
+  template:
+    metadata:
+      labels:
+        ensembl.platform.app.name: distiller
+    spec:
+      imagePullSecrets:
+        - name: ensemblweb-pull-secret
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: distiller-backend
+          image: DOCKER_IMAGE
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: distiller-config
+              mountPath: /app/config.json
+              subPath: config.json
+            - name: distiller-data
+              mountPath: /data
+      volumes:
+        - name: distiller-config
+          configMap:
+            name: distiller-backend-config
+        - name: distiller-data
+          persistentVolumeClaim:
+            claimName: distiller-data

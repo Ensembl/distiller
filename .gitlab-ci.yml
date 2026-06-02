@@ -1,0 +1,74 @@
+stages:
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_IMAGE: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
+
+.feature-branch-build-rules:
+  rules:
+    - if: '$CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH != "main"'
+      changes:
+        - Dockerfile
+        - .dockerignore
+        - backend/**/*
+        - k8s/backend/**/*
+      when: on_success
+
+.feature-branch-deploy-rules:
+  rules:
+    - if: '$CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH != "main"'
+      changes:
+        - Dockerfile
+        - .dockerignore
+        - backend/**/*
+        - k8s/backend/**/*
+      when: manual
+
+.docker-build:
+  image: docker
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t ${DOCKER_IMAGE} --no-cache .
+    - docker push ${DOCKER_IMAGE}
+    - docker rmi ${DOCKER_IMAGE}
+    - docker logout $CI_REGISTRY
+
+.deploy:
+  image: dockerhub.ebi.ac.uk/ensembl-web/deploy-tools:latest
+  before_script:
+    - kubectl config use-context ${AGENT}
+    - kubectl config set-context --current --namespace=${NS}
+  script:
+    - cd k8s/backend
+    - kustomize edit set image DOCKER_IMAGE=${DOCKER_IMAGE}
+    - kubectl apply -k .
+    - kubectl rollout status deployment/distiller-backend
+
+Build:Backend:Docker:
+  stage: build
+  extends:
+    - .docker-build
+    - .feature-branch-build-rules
+
+Dev:
+  stage: deploy
+  extends:
+    - .deploy
+    - .feature-branch-deploy-rules
+  environment:
+    name: development
+    url: https://dev-2020.ensembl.org/api/distiller
+  variables:
+    AGENT: ${DEV_AGENT}
+    NS: ${DEV_NS}

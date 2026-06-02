@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: distiller-backend-config
+data:
+  config.json: |
+    {
+      "datasets": [
+        {
+          "id": "example",
+          "label": "Example dataset",
+          "path": "/data/example.duckdb"
+        }
+      ]
+    }
