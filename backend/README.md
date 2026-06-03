@@ -71,6 +71,27 @@ Backend deployment manifests live in `k8s/backend` and are intended to be applie
 
 Update the dataset paths in `k8s/backend/configmap.yaml` to match the DuckDB files available on the mounted volume before deploying.
 
+To upload a DuckDB file from your local machine into the mounted PVC using an existing backend pod:
+
+```bash
+# Set namespace and local file path
+NS=dev-namespace
+LOCAL_DUCKDB=./example.duckdb
+TARGET_FILE=example.duckdb
+
+# Pick one running backend pod (all replicas mount the same PVC)
+POD=$(kubectl -n "$NS" get pod -l ensembl.platform.app.name=distiller -o jsonpath='{.items[0].metadata.name}')
+
+# Copy to a temporary name first, then atomically move into place
+kubectl -n "$NS" cp "$LOCAL_DUCKDB" "$POD":/data/"$TARGET_FILE".tmp
+kubectl -n "$NS" exec "$POD" -- mv /data/"$TARGET_FILE".tmp /data/"$TARGET_FILE"
+
+# Verify the file exists on the volume
+kubectl -n "$NS" exec "$POD" -- ls -lh /data
+```
+
+If you keep the same file path in the dataset config, a restart is not usually needed. If you change the dataset path in `config.json`, restart the deployment so the backend reloads config.
+
 ## Endpoints 
 
 ### /datasets
