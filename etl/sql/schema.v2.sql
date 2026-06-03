@@ -124,6 +124,7 @@ SELECT
 view_filter_id
 FROM view_filter_value;
 
+
 CREATE OR REPLACE VIEW filters_as_json AS SELECT {
   "id":vf.id,
   "title":vf.title,
@@ -132,7 +133,7 @@ CREATE OR REPLACE VIEW filters_as_json AS SELECT {
   "example":vf.example,
   "min":vf.min,
   "max":vf.max,
-  "regex":vf.regex,
+  "regex":regexp_replace(vf.regex,'(\?[Pp]\<[a-zA-Z\_0-9\-]+\>)','','g'),
   "options":ARRAY(SELECT values_json FROM filter_values_as_json WHERE view_filter_id = vf.view_filter_id )
 }::json as filter_json, view_filter_group_id from view_filter as vf;
 
