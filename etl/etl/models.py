@@ -5,57 +5,56 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 # ── Filter models ──
 
+SUPPORTED_FILTERS = Literal[
+        "fixed_list", "match", "prefix", "user_list", "range", "regex"
+    ]
 
-class SingleQueryColumn(BaseModel):
+FIXED_LIST_FILTER_TYPE = "fixed_list"
+
+SUPPORTED_COLUMNS = Literal["link", "array-link", "labelled-link", "string"] 
+
+class RegexField(BaseModel):
     column: str
+    regex_name: str
+    match: Literal[">", "<", ">=", "<=", "="]
 
 
-class LocationQueryColumns(BaseModel):
-    region: str
-    start: str
-    end: str
-    strand: str | None = None
-    bin: str | None = None
+class RegexExtras(BaseModel):
+    fields: list[RegexField]
 
 
 class Filter(BaseModel):
     id: str
+    target_column: str
     label: str
-    type: Literal[
-        "select_list", "select", "select_in", "list_contains", "range", "location"
-    ]
-    match: Literal["exact", "prefix"] | None = None
+    label: str | None = None
+    title: str
+    type: SUPPORTED_FILTERS
     filter_labels: str | None = None
     min: float | None = None
     max: float | None = None
-    query_columns: SingleQueryColumn | LocationQueryColumns | None = None
+    extras: RegexExtras | None = None
     regex: str | None = None
-
-    @property
-    def target_column(self) -> str:
-        """The actual column name to query against."""
-        if isinstance(self.query_columns, SingleQueryColumn):
-            return self.query_columns.column
-        return self.id
+    
 
 
 # ── View models ──
 
 
 class ViewFilter(BaseModel):
-    filter_id: str
+    id: str
 
     # Attributes we copy across from the Filter object definition above
     # which is why we're not very tight on the defs
     label: str | None = None
+    title: str
+    example: str | None = None
     type: (
-        Literal[
-            "select_list", "select", "select_in", "list_contains", "range", "location"
-        ]
+        SUPPORTED_FILTERS
         | None
     ) = None
     match: Literal["exact", "prefix"] | None = None
@@ -63,13 +62,14 @@ class ViewFilter(BaseModel):
     max: float | None = None
     rank: int | None = None
     filter_values: list[dict[str, str]] | None = None
-    query_columns: SingleQueryColumn | LocationQueryColumns | None = None
+    extras:  RegexExtras | None = None
     regex: str | None = None
 
     def copy_from_filter(self, filter: Filter) -> None:
         for key, value in filter.model_dump(exclude_none=True).items():
             if hasattr(self, key):
                 setattr(self, key, value)
+        self.extras = filter.extras
 
 
 class ViewFilterGroup(BaseModel):
@@ -87,7 +87,7 @@ class ViewColumn(BaseModel):
     label: str | None = None
     sortable: bool = True
     hidden: bool = False
-    type: Literal["link", "array-link", "labelled-link", "string"] = "string"
+    type: SUPPORTED_COLUMNS = "string"
     url: str | None = None
     delimiter: str | None = None
 
@@ -98,19 +98,17 @@ class View(BaseModel):
     name: str
     source: str
     include_remaining_columns: bool = False
-    filters: list[Union[ViewFilterGroup, ViewFilter]]
+    filter_groups: list[ViewFilterGroup]
     columns: list[ViewColumn]
-
+    
 
 # ── Columns ──
-
-
 class Column(BaseModel):
     name: str | None = None
     label: str | None = None
     sortable: bool = True
     hidden: bool | None = False
-    type: Literal["link", "array-link", "labelled-link", "string"] = "string"
+    type: SUPPORTED_COLUMNS = "string"
     url: str | None = None
     delimiter: str | None = None
 
@@ -123,15 +121,34 @@ class Config(BaseModel):
     views: list[View]
     columns: dict[str, dict[str, Column]] = {}  # keyed by view id
 
-    def get_filter(self, filter_id: str) -> Filter:
-        for f in self.filters:
-            if f.id == filter_id:
-                return f
-        raise KeyError(f"Unknown filter id: {filter_id!r}")
+    @model_validator(mode='before')
+    @classmethod
+    def copy_filters_to_filter_groups(cls, data: Any) -> Any:
 
+        filter_dict = {d["id"]:d for d in data["filters"]}
+        
+        for v in data["views"]:
+            for g in v["filter_groups"]:
+                for i in range(len(g["filters"])):
+                    f_id = g["filters"][i]["id"]
+                    if f_id in filter_dict.keys():
+                        g["filters"][i] = filter_dict[f_id]
+                    else:
+                        raise ValueError(f"{f['id']} not found in filters!")
+        print(data["views"][0]["filter_groups"][0]["filters"])
+        return data
+
+def validate_config(config_data:dict[str, Any]) -> bool:
+    Config.model_validate(config_data)
+    
+    # check required fields for filters 
+    # - regex - regex has groups. group names match extras
+    # - range has min max
+    # 
+    
+    return True
 
 # ── Dataset models (data.json) ──
-
 
 class CreateColumn(BaseModel):
     name: str

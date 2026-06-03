@@ -1,0 +1,12 @@
+[
+    {
+        "name": "genes",
+        "path": "../datasets/genes/genomes_and_genes_v2_fixed.csv",
+        "create_columns": [
+            {
+                "name": "gen_alt_symbols",
+                "command": "regexp_replace(alternative_symbols, $$[\\'\\[\\]]$$,'','g')",
+            },
+        ],
+    },
+]

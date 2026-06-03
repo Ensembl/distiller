@@ -64,6 +64,9 @@ class Transform:
                     "Unsupported file format. Use .parquet or .csv (compressed csv should work)"  # noqa: E501
                 )
             logger.debug(sql_view)
+            print("-----------")
+            print(sql_view)
+            print("-----------")
             conn.execute(sql_view)
             return self.write_output(dataset, conn)
 

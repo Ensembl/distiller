@@ -5,11 +5,19 @@ from typing import Any, Self
 
 import duckdb
 
-from etl.models import View, ViewFilterGroup
+from etl.models import View, ViewFilterGroup, RegexExtras, FIXED_LIST_FILTER_TYPE
 
 logger = logging.getLogger(__name__)
 
 schema_version = "v2"
+
+REGEX_MACRO_TEMPLATE = """
+CREATE OR REPLACE MACRO regex_{}_filter(table_name, {}) AS TABLE(
+    SELECT *
+    FROM query_table(table_name)
+    WHERE {}
+)
+"""
 
 
 class BaseDatabase:
@@ -52,6 +60,27 @@ class DatabaseConfig(BaseDatabase):
             logging.info("Finished")
         self.generate_release()
 
+    def write_regex_macro(self, filter_id:str , extras: RegexExtras) -> bool:
+        conn = self.conn
+        inputs:[str] = []
+        matches:[str] = []
+        
+        for field in extras.fields:
+            modifier = ""
+            if field.match is not "=": #force column to be a int when comparing size
+                modifier = "::int"
+
+            inputs.append(f"in_{field.regex_name}")
+            matches.append(f"{field.column}{modifier} {field.match} in_{field.regex_name}")
+        
+        macro = REGEX_MACRO_TEMPLATE.format(filter_id, ",".join(inputs), " AND ".join(matches))
+        print("Creating REGEX macro -------------------")
+        print(macro)
+        print("------------------------------")
+        conn.execute(macro)
+            
+        return True
+
     def write_view(self, view: View) -> None:
         conn = self.conn
         view_db_id = self.next_id("view")
@@ -64,7 +93,7 @@ class DatabaseConfig(BaseDatabase):
 
         # Write filter groups and their filters
         # After view processing, view.filters is a list[ViewFilterGroup]
-        for group in view.filters:
+        for group in view.filter_groups:
             assert isinstance(group, ViewFilterGroup)
             group_db_id = self.next_id("view_filter_group")
             group_sql = "INSERT INTO view_filter_group (view_filter_group_id, view_id, id, label, rank) VALUES (?,?,?,?,?)"  # noqa: E501
@@ -75,32 +104,36 @@ class DatabaseConfig(BaseDatabase):
 
             for view_filter in group.filters:
                 view_filter_db_id = self.next_id("view_filter")
-                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, filter_type, match_type, rank, min, max, query_columns, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
+                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, title, example, filter_type, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
                 # Generate a unique DB id by prefixing with the view id
-                db_filter_id = f"{view.id}_{view_filter.filter_id}"
-                # Ensure query_columns is always set so the backend can
-                # resolve the actual data column from the unique DB id
-                qc = view_filter.query_columns
-                if qc is None:
-                    qc = {"column": view_filter.filter_id}
-                elif hasattr(qc, "model_dump"):
-                    qc = qc.model_dump(exclude_none=True)
+                db_filter_id = f"{view.id}_{view_filter.id}"
+
+                extras = view_filter.extras
+                if view_filter.type == "regex":
+                    self.write_regex_macro(db_filter_id, extras)
+                
+                if extras:
+                    extras_dump = extras.model_dump(exclude_none=True)
+                else:
+                    extras_dump = "{}"
+
                 filter_params = (
                     view_filter_db_id,
                     group_db_id,
                     db_filter_id,
                     view_filter.label,
+                    view_filter.title,
+                    view_filter.example,
                     view_filter.type,
-                    view_filter.match,
                     view_filter.rank,
                     view_filter.min,
                     view_filter.max,
-                    qc,
+                    extras_dump,
                     view_filter.regex,
                 )
                 conn.execute(filter_sql, filter_params)
                 if (
-                    view_filter.type == "select_list"
+                    view_filter.type == FIXED_LIST_FILTER_TYPE
                     and view_filter.filter_values is not None
                 ):
                     for value in view_filter.filter_values:

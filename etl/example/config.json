@@ -2,15 +2,55 @@
     "filters":[
         {
             "id":"id",
+            "target_column":"id",
             "label":"ID",
-            "type" : "select",
-            "match" : "exact"
+            "title":"ID",
+            "type" : "match",
         },
         {
             "id":"class",
+            "target_column":"class",
             "label":"Class",
-            "type" : "select_list",
+            "title":"Class",
+            "type" : "fixed_list",
             "filter_labels":"lower(class)"
+        },
+        {
+            "id":"location",
+            "target_column":"location",
+            "label":"Location",
+            "title":"Location",
+            "example":"1:100-10000",
+            "regex":"(?P<region>[^:]+):(?P<start>\\d+)-(?P<end>\\d+)",
+            "type":"regex",
+            "extras": {
+                "fields":[
+                    {
+                        "column":"region",
+                        "regex_name":"region",
+                        "match":"="
+                    },
+                    {
+                        "column":"stop",
+                        "regex_name":"start",
+                        "match":">="
+	               },
+	               {
+                        "column":"start",
+                        "regex_name":"end",
+                        "match":"<="
+	               }
+                ]
+            }
+        },
+        {
+            "id":"start",
+            "target_column":"start",
+            "label":"Start",
+            "title":"Start",
+            "type" : "range",
+            "min":9,
+            "max":1001
         }
     ],
     "views":[
@@ -20,9 +60,23 @@
             "source":"test",
             "url_name":"test",
             "include_remaining_columns" : true,
-            "filters" : [
-                { "filter_id" : "id" },
-                { "filter_id" : "class" }
+            "filter_groups" : [
+                {
+                    "group_id": "default",
+                    "group_label": "Filters",
+                    "filters":[
+                        { "id" : "id" },
+                        { "id" : "class" },
+                        { "id": "location"}
+                    ]
+                },
+                {
+                    "group_id":"extras",
+                    "group_label":"Extras",
+                    "filters":[
+                        {"id": "start" }
+                    ]
+                }
             ],
               "columns":[
                   { "name": "id", "enabled":true },

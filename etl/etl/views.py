@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 
 import duckdb
@@ -8,12 +9,12 @@ from etl.models import (
     Column,
     Dataset,
     Filter,
-    LocationQueryColumns,
-    SingleQueryColumn,
+    RegexExtras,
     View,
     ViewColumn,
     ViewFilter,
     ViewFilterGroup,
+    FIXED_LIST_FILTER_TYPE
 )
 
 logger = logging.getLogger(__name__)
@@ -61,9 +62,9 @@ class ViewsProcessor:
             for view in self.views:
                 dataset = self.get_dataset(view.source)
                 self.validate_query_columns(view, dataset)
-                normalised_groups = self.normalise_to_groups(view)
+                #normalised_groups = self.normalise_to_groups(view)
                 group_rank = 1
-                for group in normalised_groups:
+                for group in view.filter_groups:
                     group.rank = group_rank
                     group_rank += 1
                     filter_rank = 1
@@ -78,7 +79,6 @@ class ViewsProcessor:
                     if len(group.filters) == 1 and group.filters[0].label:
                         group.group_label = group.filters[0].label
                 # Replace view.filters with the normalised groups
-                view.filters = normalised_groups
                 self.populate_additional_columns(view)
                 self.write_view(view)
 
@@ -112,7 +112,7 @@ class ViewsProcessor:
         conn: duckdb.DuckDBPyConnection,
     ) -> None:
         filter_definition = self.get_filter_definition(view, view_filter)
-        if filter_definition.type == "select_list":
+        if filter_definition.type == FIXED_LIST_FILTER_TYPE:
             filter_values = self.distinct_filter_values(
                 filter_definition, parquet, conn
             )
@@ -130,7 +130,7 @@ class ViewsProcessor:
 
     def get_filter_definition(self, view: View, view_filter: ViewFilter) -> Filter:
         for filter in self.filters:
-            if filter.id == view_filter.filter_id:
+            if filter.id == view_filter.id:
                 return filter
         raise FilterError(
             f"Cannot find the filter '{view_filter.filter_id}' in the view '{view.name}'"  # noqa: E501
@@ -151,7 +151,6 @@ class ViewsProcessor:
         distinct_sql = f"""
 SELECT DISTINCT "{filter.target_column}" AS value, {filter.filter_labels} AS label
 from '{parquet}'
-WHERE "{filter.target_column}" IS NOT NULL
 ORDER BY label ASC
 """
         logger.debug(distinct_sql)
@@ -172,43 +171,36 @@ ORDER BY label ASC
             c.name for c in dataset.columns if c.name is not None
         }
 
-        for entry in view.filters:
-            filters_to_check: list[ViewFilter] = []
-            if isinstance(entry, ViewFilterGroup):
-                filters_to_check = entry.filters
-            elif isinstance(entry, ViewFilter):
-                filters_to_check = [entry]
+        for group in view.filter_groups:
 
-            for vf in filters_to_check:
+            for vf in group.filters:
                 filter_def = self.get_filter_definition(view, vf)
-                qc = filter_def.query_columns
-                if qc is None:
-                    # No explicit query_columns — filter.id is the default
-                    # column but we only validate when explicitly specified
+                extra = filter_def.extras
+                if extra is None:
+                    # config is only used for complex filter types such as regex
                     continue
-                elif isinstance(qc, SingleQueryColumn):
-                    if qc.column not in available_columns:
+                elif isinstance(extra, dict):
+                    raise FilterError(
+                            f"Error with extras, not parsed to a model '{extra}'"
+                    )
+                elif isinstance(extra, RegexExtras):
+                    regex = re.compile(filter_def.regex)
+                    
+                    registered_regex_keys = [field.regex_name for field in extra.fields]
+                    regex_keys = regex.groupindex.keys()
+                    if len(registered_regex_keys) != len(regex_keys):
                         raise FilterError(
-                            f"Filter '{filter_def.id}' references column "
-                            f"'{qc.column}' which does not exist in "
-                            f"source '{view.source}'"
+                            f"Filter '{filter_def.id}' regex role "
+                            "Registered REGEX keys does not match found REGEX keys,"
+                            f"registered: {len(registered_regex_keys)}, "
+                            f"found: {len(regex_keys)}"
                         )
-                elif isinstance(qc, LocationQueryColumns):
-                    for role in ("region", "start", "end"):
-                        col_name = getattr(qc, role)
-                        if col_name not in available_columns:
+
+                    for pattern_name in regex_keys:
+                        if pattern_name not in registered_regex_keys:
                             raise FilterError(
-                                f"Filter '{filter_def.id}' location role "
-                                f"'{role}' references column '{col_name}' "
-                                f"which does not exist in source '{view.source}'"
-                            )
-                    for role in ("strand", "bin"):
-                        col_name = getattr(qc, role)
-                        if col_name is not None and col_name not in available_columns:
-                            raise FilterError(
-                                f"Filter '{filter_def.id}' location role "
-                                f"'{role}' references column '{col_name}' "
-                                f"which does not exist in source '{view.source}'"
+                                f"Filter '{filter_def.id}' regex role "
+                                f"'{pattern_name}' was not registered"
                             )
 
     def _get_column_override(self, view_id: str, column_name: str) -> Column | None:

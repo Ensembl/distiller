@@ -1,0 +1,9 @@
+{
+    "datasets":[
+        {
+            "id":"unique name",
+            "label":"My dataset",
+            "path":"/my/dataset/path/data.duckdb"
+        }
+    ]
+}

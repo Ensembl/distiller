@@ -23,13 +23,14 @@ CREATE TABLE view_filter (
     view_filter_id INTEGER PRIMARY KEY,
     view_filter_group_id INTEGER NOT NULL,
     "id" VARCHAR NOT NULL,
-    "label" VARCHAR NOT NULL,
+    "title" VARCHAR NOT NULL,
+    "example" VARCHAR,
+    "label" VARCHAR,
     filter_type VARCHAR NOT NULL,
-    match_type VARCHAR,
     rank INTEGER NOT NULL,
     "min" DOUBLE,
     "max" DOUBLE,
-    query_columns JSON,
+    extras JSON,
     regex VARCHAR,
     UNIQUE("id"),
     FOREIGN KEY (view_filter_group_id) REFERENCES view_filter_group(view_filter_group_id)
@@ -84,10 +85,9 @@ SELECT
     vf."id" AS filter_name,
     vf."label" AS filter_label,
     vf.filter_type,
-    vf.match_type,
     vf."min",
     vf."max",
-    vf.query_columns,
+    vf.extras,
     vf.regex
 FROM view_filter vf
     JOIN view_filter_group vfg ON vf.view_filter_group_id = vfg.view_filter_group_id
@@ -114,6 +114,57 @@ FROM view_column vc
     JOIN "view" v ON vc.view_id = v.view_id
 ORDER BY v.view_id, vc.rank;
 
+-- Config payload views -----------------------------------------
+CREATE OR REPLACE VIEW filter_values_as_json AS
+SELECT
+{
+  "label":label,
+  "value":value
+}::json as values_json,
+view_filter_id
+FROM view_filter_value;
+
+
+CREATE OR REPLACE VIEW filters_as_json AS SELECT {
+  "id":vf.id,
+  "title":vf.title,
+  "label":vf.label,
+  "type":vf.filter_type,
+  "example":vf.example,
+  "min":vf.min,
+  "max":vf.max,
+  "regex":regexp_replace(vf.regex,'(\?[Pp]\<[a-zA-Z\_0-9\-]+\>)','','g'),
+  "options":ARRAY(SELECT values_json FROM filter_values_as_json WHERE view_filter_id = vf.view_filter_id )
+}::json as filter_json, view_filter_group_id from view_filter as vf;
+
+CREATE OR REPLACE VIEW filter_groups_as_json AS SELECT {
+  "id":vfg.id,
+  "label":vfg.label,
+  "filters":ARRAY(SELECT filter_json FROM filters_as_json where view_filter_group_id = vfg.view_filter_group_id)
+}::json AS group_json,
+vfg.view_id AS view_id
+FROM view_filter_group AS vfg
+ORDER BY vfg.rank ASC;
+
+CREATE OR REPLACE VIEW columns_as_json AS SELECT 
+{
+"id":view_column_id,
+"label":label,
+"is_sortable":sortable,
+"enable_by_default":enable_by_default, 
+}::json as col_json,
+view_id
+FROM view_column
+WHERE hidden=false
+ORDER BY rank ASC;
+
+CREATE OR REPLACE VIEW dataset_config AS
+SELECT {
+"columns":ARRAY(SELECT col_json FROM columns_as_json where view_id = view.view_id), 
+"filter_groups":ARRAY(SELECT group_json FROM filter_groups_as_json where view_id = view.view_id)
+}::json AS json_config,
+view_id
+FROM view;
 
 -- Macros
 CREATE MACRO mask_set(i) AS floor(i / 28); -- used to generate bit mask set
