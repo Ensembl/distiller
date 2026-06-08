@@ -28,10 +28,10 @@ def _process_value(val:str, type:str, url:str|None, delimiter:str|None):
         case "string":
             return f"\"{val}\""
         case "link":
-            return {'value':f"\"{val}\"", 'url': f"\"{url.format(val)}\""}
+            return {'value':val, 'url': url.format(val)}
         case "array-link":
              {'values':[
-                 {'value':f"\"{v}\"", 'url': f"\"{url.format(v)}\""}
+                 {'value':v, 'url': url.format(v)}
                  for v in val.split(delimiter)
                  ]
             }
