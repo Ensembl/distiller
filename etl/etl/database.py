@@ -19,6 +19,24 @@ CREATE OR REPLACE MACRO regex_{}_filter(table_name, {}) AS TABLE(
 )
 """
 
+VIEW_COLUMN_LINK_COL = """
+ALTER TABLE view_column_link ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter VARCHAR);"""
+
+def _process_value(val:str, type:str, url:str|None, delimiter:str|None):
+    # Literal["link", "array-link", "labelled-link", "string"] 
+    match type:
+        case "string":
+            return f"\"{val}\""
+        case "link":
+            return {'value':f"\"{val}\"", 'url': f"\"{url.format(val)}\""}
+        case "array-link":
+             {'values':[
+                 {'value':f"\"{v}\"", 'url': f"\"{url.format(v)}\""}
+                 for v in val.split(delimiter)
+                 ]
+            }
+        case _:
+             f"\"{val}\""
 
 class BaseDatabase:
     def __init__(self, release_path: Path, release: str) -> None:
@@ -51,6 +69,51 @@ class DatabaseConfig(BaseDatabase):
         self.views = views
         self.schema_version = schema_version
         self.ids: dict[str, int] = {}
+    
+    def create_dataset(self, view:View) -> None:
+        conn = self.conn
+        # get dataset table
+        # select visible columns
+        # get column details
+        cols = [c for c in view.columns if c.hidden == False]
+        col_lookup = {c.name:c for c in cols}
+        col_names = [c.name for c in cols]
+        col_args = ", ".join(['?' for x in range(len(col_names))])
+        col_structs = [
+            f"{n} STRUCT(style VARCHAR, raw VARCHAR, val JSON)"
+            for n in col_names
+        ]
+        # create table
+        create_table = f"CREATE TABLE dataset_{view.source} ({', '.join(col_structs)});"
+        conn.execute(create_table)
+        
+        # insert statement
+        insert_data = f"INSERT INTO dataset_{view.source} ({', '.join(col_names)}) VALUES({col_args})"
+        
+        # get values to insert
+        select_data = f"SELECT {', '.join(col_names)} FROM {view.source}"
+        query = conn.sql(select_data)
+        rows = query.fetchall()
+        for r in rows:
+            row_args = [
+                {
+                    'style':col_lookup[col_names[x]].type,
+                    'raw':r[x],
+                    'val':_process_value(
+                        r[x],
+                        col_lookup[col_names[x]].type,
+                        col_lookup[col_names[x]].url,
+                        col_lookup[col_names[x]].delimiter
+                        )
+                }
+                for x in range(len(col_names))
+            ]
+            
+            # insert value
+            conn.execute(insert_data, row_args)
+        
+     
+
 
     def run(self) -> None:
         self.load_schema()
@@ -67,7 +130,7 @@ class DatabaseConfig(BaseDatabase):
         
         for field in extras.fields:
             modifier = ""
-            if field.match is not "=": #force column to be a int when comparing size
+            if field.match != "=": #force column to be a int when comparing size
                 modifier = "::int"
 
             inputs.append(f"in_{field.regex_name}")
@@ -80,6 +143,37 @@ class DatabaseConfig(BaseDatabase):
         conn.execute(macro)
             
         return True
+    
+    def write_view_column_link(self,view_id:int, view: View) -> None:
+        """
+        Create a version of view_column_link that can be joined with the dataset table
+        """
+        
+        conn = self.conn
+        
+        # extend table to add columns
+        args = [view_id]
+        for col in view.columns:
+            query = VIEW_COLUMN_LINK_COL.format(f"col_{col.name}")
+            print(query)
+            conn.execute(query)
+            args.append(
+                f"{{'label':'{col.label}', 'type':'{col.type}', 'sortable':'{col.sortable}', 'url':'{col.url}', 'delimiter':'{col.delimiter}'}}"
+            )
+        
+        # insert
+        cols = [f"col_{c.name}" for c in view.columns]
+        params = ["?"]
+        params.extend(["?" for c in view.columns])
+        insert = f"INSERT INTO view_column_link (view_id, { ', '.join(cols)}) VALUES ({', '.join(params)})"
+        
+        print(insert)
+        print("------")
+        print(args[1])
+        
+        conn.execute(insert, args)
+        
+        
 
     def write_view(self, view: View) -> None:
         conn = self.conn
@@ -144,7 +238,7 @@ class DatabaseConfig(BaseDatabase):
                             value["label"],
                         )
                         conn.execute(value_sql, value_params)
-
+     
         # Write merged columns (column metadata + view association)
         col_index = 0
         for column in view.columns:
@@ -166,6 +260,9 @@ class DatabaseConfig(BaseDatabase):
             )
             col_index += 1
             conn.execute(col_sql, col_params)
+            
+        #self.write_view_column_link(view_db_id, view)
+        self.create_dataset(view)
 
     def generate_release(self) -> None:
         sql = "INSERT INTO release (release_label, schema_version) VALUES (strftime(current_date(),'%Y-%m'), ?)"  # noqa: E501

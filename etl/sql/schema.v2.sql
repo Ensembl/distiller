@@ -63,6 +63,11 @@ CREATE TABLE view_column (
     UNIQUE (view_id, "name")
 );
 
+CREATE TABLE IF NOT EXISTS view_column_link (
+    view_id INTEGER NOT NULL,
+    FOREIGN KEY (view_id) REFERENCES "view"(view_id)
+);
+
 -- Release metadata
 CREATE TABLE IF NOT EXISTS "release" (
     release_label VARCHAR NOT NULL,
