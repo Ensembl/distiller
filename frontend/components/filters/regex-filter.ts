@@ -29,6 +29,7 @@ export class RegexFilter extends LitElement {
     return html`
       <ens-input
         appearance="shaded"
+        placeholder=${this.filterData.example}
         .label=${this.filterData.label}
       ></ens-input>
     `;
