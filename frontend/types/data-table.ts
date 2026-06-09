@@ -7,7 +7,7 @@ export type TableColumn = {
 
 export type StringData = {
   type: 'string';
-  column_id: 'string';
+  column_id: string;
   value: string | null;
 };
 
