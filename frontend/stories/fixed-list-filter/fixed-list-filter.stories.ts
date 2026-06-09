@@ -1,6 +1,6 @@
-import '../components/filters/fixed-list-filter';
+import '../../components/filters/fixed-list-filter';
 
-import type { FixedListFilter } from '../types/filters';
+import type { FixedListFilter } from '../../types/filters';
 
 import './fixed-list-filter.stories.css';
 

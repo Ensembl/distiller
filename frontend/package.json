@@ -10,7 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@ensembl/ensembl-elements-common": "0.0.4",
+    "@ensembl/ensembl-elements-common": "0.0.5-dev",
     "lit": "3.3.3"
   },
   "devDependencies": {
