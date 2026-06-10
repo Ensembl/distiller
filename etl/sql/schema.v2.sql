@@ -171,6 +171,18 @@ SELECT {
 view_id
 FROM view;
 
+-- records payload views -------------
+CREATE OR REPLACE VIEW column_details AS SELECT
+name,
+{
+  "id":view_column_id,
+  "name":name,
+  "style":type,
+  "label":"label",
+  "sortable":sortable
+} as details FROM view_column order by rank;
+
+
 -- Macros
 CREATE MACRO mask_set(i) AS floor(i / 28); -- used to generate bit mask set
 CREATE MACRO col_mask(i)  AS (mask_set(i)::UINT32 << 28) + (1 << (i - (mask_set(i) * 28))::UINT32); -- convert a index into a mask

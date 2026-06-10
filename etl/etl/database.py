@@ -22,16 +22,23 @@ CREATE OR REPLACE MACRO regex_{}_filter(table_name, {}) AS TABLE(
 VIEW_COLUMN_LINK_COL = """
 ALTER TABLE view_column_link ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter VARCHAR);"""
 
+VIEW_DATASET = """
+CREATE OR REPLACE VIEW dataset_view AS
+SELECT 
+{{"style":struct_extract(COLUMNS(*),'style') , 'value':struct_extract(COLUMNS(*),'value')}}
+FROM dataset_{};
+"""
+
 def _process_value(val:str, type:str, url:str|None, delimiter:str|None):
     # Literal["link", "array-link", "labelled-link", "string"] 
     match type:
         case "string":
             return f"\"{val}\""
         case "link":
-            return {'value':val, 'url': url.format(val)}
+            return {'label':val, 'url': url.format(val)}
         case "array-link":
              {'values':[
-                 {'value':v, 'url': url.format(v)}
+                 {'label':v, 'url': url.format(v)}
                  for v in val.split(delimiter)
                  ]
             }
@@ -71,6 +78,12 @@ class DatabaseConfig(BaseDatabase):
         self.ids: dict[str, int] = {}
     
     def create_dataset(self, view:View) -> None:
+        """
+        Method that creates a dataset version of the data table.
+        The dataset version switches out a varchar value for a struct that includes
+        the column type, a raw version of the value, and a processed version that includes
+        everything needed to display the value on the client (see _process_value for details)
+        """
         conn = self.conn
         # get dataset table
         # select visible columns
@@ -80,7 +93,7 @@ class DatabaseConfig(BaseDatabase):
         col_names = [c.name for c in cols]
         col_args = ", ".join(['?' for x in range(len(col_names))])
         col_structs = [
-            f"{n} STRUCT(style VARCHAR, raw VARCHAR, val JSON)"
+            f"{n} STRUCT(style VARCHAR, raw VARCHAR, value JSON)"
             for n in col_names
         ]
         # create table
@@ -99,7 +112,7 @@ class DatabaseConfig(BaseDatabase):
                 {
                     'style':col_lookup[col_names[x]].type,
                     'raw':r[x],
-                    'val':_process_value(
+                    'value':_process_value(
                         r[x],
                         col_lookup[col_names[x]].type,
                         col_lookup[col_names[x]].url,
@@ -112,7 +125,9 @@ class DatabaseConfig(BaseDatabase):
             # insert value
             conn.execute(insert_data, row_args)
         
-     
+        # create view
+        print(VIEW_DATASET.format(view.source))
+        conn.execute(VIEW_DATASET.format(view.source))
 
 
     def run(self) -> None:
