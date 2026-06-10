@@ -3,10 +3,8 @@ import { customElement } from 'lit/decorators.js';
 
 import { panelStyles } from '../../styles/panel-styles';
 
-// --panel-border-radius: 5px;
-
 @customElement('ens-data-distiller-panel-bottom')
-export class TopPanel extends LitElement {
+export class BottomPanel extends LitElement {
   static styles = [
     panelStyles,
     css`
