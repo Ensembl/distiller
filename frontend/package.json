@@ -1,0 +1,22 @@
+{
+  "name": "data-distiller",
+  "version": "0.0.1",
+  "description": "Ensembl's interface for querying and tabular display of various data",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite ./playground",
+    "storybook": "storybook dev -p 9001 -c .storybook",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@ensembl/ensembl-elements-common": "0.0.5-dev",
+    "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "@storybook/web-components-vite": "10.4.1",
+    "storybook": "10.4.1",
+    "typescript": "6.0.3",
+    "vite": "8.0.15"
+  }
+}
