@@ -19,8 +19,21 @@ CREATE OR REPLACE MACRO regex_{}_filter(table_name, {}) AS TABLE(
 )
 """
 
+MACRO_COLUMN_MAP_TEMPLATE = """
+create macro column_map(id) AS
+  CASE id
+    {}
+  END
+"""
+
+MACRO_COLUMN_MAP_ELEMENT = """
+    WHEN {} THEN '{}'
+"""
+
 VIEW_COLUMN_LINK_COL = """
-ALTER TABLE view_column_link ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter VARCHAR);"""
+ALTER TABLE view_column_link 
+ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter VARCHAR);
+"""
 
 VIEW_DATASET = """
 CREATE OR REPLACE VIEW dataset_view AS
@@ -37,11 +50,18 @@ def _process_value(val:str, type:str, url:str|None, delimiter:str|None):
         case "link":
             return {'label':val, 'url': url.format(val)}
         case "array-link":
-             {'values':[
+            return {'values':[
                  {'label':v, 'url': url.format(v)}
                  for v in val.split(delimiter)
                  ]
             }
+        case "labelled-link":
+            if "|" in val:
+                bits = val.split('|')
+                return {'label':bits[0], 'url': url.format(bits[1])}
+            
+            return f"\"{val}\""
+            
         case _:
              f"\"{val}\""
 
@@ -158,37 +178,16 @@ class DatabaseConfig(BaseDatabase):
         conn.execute(macro)
             
         return True
-    
-    def write_view_column_link(self,view_id:int, view: View) -> None:
-        """
-        Create a version of view_column_link that can be joined with the dataset table
-        """
-        
+
+
+    def write_column_mapper(self, columns: list[ViewColumn]) -> None:
         conn = self.conn
         
-        # extend table to add columns
-        args = [view_id]
-        for col in view.columns:
-            query = VIEW_COLUMN_LINK_COL.format(f"col_{col.name}")
-            print(query)
-            conn.execute(query)
-            args.append(
-                f"{{'label':'{col.label}', 'type':'{col.type}', 'sortable':'{col.sortable}', 'url':'{col.url}', 'delimiter':'{col.delimiter}'}}"
-            )
-        
-        # insert
-        cols = [f"col_{c.name}" for c in view.columns]
-        params = ["?"]
-        params.extend(["?" for c in view.columns])
-        insert = f"INSERT INTO view_column_link (view_id, { ', '.join(cols)}) VALUES ({', '.join(params)})"
-        
-        print(insert)
-        print("------")
-        print(args[1])
-        
-        conn.execute(insert, args)
-        
-        
+        col_maps = [
+            MACRO_COLUMN_MAP_ELEMENT.format(c.id)   
+            for c in columns
+        ]
+
 
     def write_view(self, view: View) -> None:
         conn = self.conn
@@ -276,7 +275,6 @@ class DatabaseConfig(BaseDatabase):
             col_index += 1
             conn.execute(col_sql, col_params)
             
-        #self.write_view_column_link(view_db_id, view)
         self.create_dataset(view)
 
     def generate_release(self) -> None:

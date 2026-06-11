@@ -184,6 +184,14 @@ name,
 
 
 -- Macros
+
+--- Column id to name macros
+
+---- column_map generated during ETL run
+create macro column_mapper(ids) AS
+(SELECT list_transform(ids, lambda c : column_map(c)))
+
+--- Mask to column name macros
 CREATE MACRO mask_set(i) AS floor(i / 28); -- used to generate bit mask set
 CREATE MACRO col_mask(i)  AS (mask_set(i)::UINT32 << 28) + (1 << (i - (mask_set(i) * 28))::UINT32); -- convert a index into a mask
 CREATE MACRO get_view_columns(view_source, target_mask) AS -- returns a list of columns based on a mask

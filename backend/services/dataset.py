@@ -69,6 +69,7 @@ def records(dataset_id:str):
     # - Convert column ids into column names
     # - Build up where filter list
     # - Add pagination 
+    # - Sorting
     
     sql = generate_records_query(['gen_alt_symbols','metadata_name_url', 'so_term', 'type'])
     
