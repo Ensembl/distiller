@@ -188,8 +188,6 @@ name,
 --- Column id to name macros
 
 ---- column_map generated during ETL run
-create macro column_mapper(ids) AS
-(SELECT list_transform(ids, lambda c : column_map(c)))
 
 --- Mask to column name macros
 CREATE MACRO mask_set(i) AS floor(i / 28); -- used to generate bit mask set

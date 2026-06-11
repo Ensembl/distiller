@@ -2,7 +2,7 @@ import json
 
 from core.database import get_db_connection
 from core.config import get_dataset_path
-
+from models.payload import Payload
 
 
 def is_empty(v) -> bool:
@@ -38,15 +38,17 @@ def fetch_config(dataset_id):
     return payload
 
 
-def generate_records_query(cols:list[str]):
+def generate_records_query(cols:list[number]):
     quote = "'{}'"
     col_str = f"[{','.join(quote.format(c) for c in cols)}]"
     sql = f"""
+    SET VARIABLE selected_cols = column_mapper({col_str});
+    
     with col_select as (
-    SELECT COLUMNS({col_str}) FROM dataset_view
+    SELECT COLUMNS(getvariable('selected_cols')) FROM dataset_view
     )
     SELECT {{
-    "columns":ARRAY(SELECT details FROM column_details where name in {col_str}),
+    "columns":ARRAY(SELECT details FROM column_details where name in getvariable('selected_cols')),
     "rows":ARRAY(SELECT struct_pack(*COLUMNS(*)) FROM col_select limit 4)
     }}::JSON;   
     """
@@ -54,8 +56,7 @@ def generate_records_query(cols:list[str]):
     return sql
 
 
-
-def records(dataset_id:str):
+def records(dataset_id:str, payload: Payload |  None = None):
     # Get dataset
     db_path = get_dataset_path(dataset_id)
     
@@ -66,7 +67,9 @@ def records(dataset_id:str):
     
     # TODO
     # - Add input model
+    #   - WIP
     # - Convert column ids into column names
+    #   - SELECT column_mapper([1,3,10])
     # - Build up where filter list
     # - Add pagination 
     # - Sorting

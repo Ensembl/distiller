@@ -23,12 +23,13 @@ MACRO_COLUMN_MAP_TEMPLATE = """
 create macro column_map(id) AS
   CASE id
     {}
-  END
+  END;
+
+CREATE MACRO column_mapper(ids) AS
+(SELECT list_transform(ids, lambda c : column_map(c)));
 """
 
-MACRO_COLUMN_MAP_ELEMENT = """
-    WHEN {} THEN '{}'
-"""
+MACRO_COLUMN_MAP_ELEMENT = "WHEN {} THEN '{}'"
 
 VIEW_COLUMN_LINK_COL = """
 ALTER TABLE view_column_link 
@@ -179,16 +180,6 @@ class DatabaseConfig(BaseDatabase):
             
         return True
 
-
-    def write_column_mapper(self, columns: list[ViewColumn]) -> None:
-        conn = self.conn
-        
-        col_maps = [
-            MACRO_COLUMN_MAP_ELEMENT.format(c.id)   
-            for c in columns
-        ]
-
-
     def write_view(self, view: View) -> None:
         conn = self.conn
         view_db_id = self.next_id("view")
@@ -255,6 +246,7 @@ class DatabaseConfig(BaseDatabase):
      
         # Write merged columns (column metadata + view association)
         col_index = 0
+        col_mapping = []
         for column in view.columns:
             col_db_id = self.next_id("view_column")
             col_sql = "INSERT INTO view_column (view_column_id, view_id, name, label, type, sortable, url, delimiter, hidden, rank, enable_by_default, mask) VALUES (?,?,?,?,?,?,?,?,?,?,?, col_mask(?))"  # noqa: E501
@@ -272,8 +264,14 @@ class DatabaseConfig(BaseDatabase):
                 column.enabled,
                 col_index
             )
+            col_mapping.append(MACRO_COLUMN_MAP_ELEMENT.format(col_db_id, column.name))
             col_index += 1
             conn.execute(col_sql, col_params)
+        
+        ## create column map macro
+        print(MACRO_COLUMN_MAP_TEMPLATE.format("\n".join(col_mapping)))
+        conn.execute(MACRO_COLUMN_MAP_TEMPLATE.format("\n".join(col_mapping)))
+        
             
         self.create_dataset(view)
 
