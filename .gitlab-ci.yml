@@ -10,7 +10,11 @@ variables:
 .branch-rules-main:
   rules:
     - if: '$CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH == "main"'
-      when: on_success
+
+.branch-rules-main-manual:
+  rules:
+    - if: '$CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH == "main"'
+      when: manual
 
 .docker-build:
   image: docker
@@ -68,10 +72,11 @@ Staging:
 
 Prod:
   stage: deploy-prod
-  extends: .deploy-main
+  extends:
+    - .deploy
+    - .branch-rules-main-manual
   environment:
     name: production
-  when: manual
   variables:
     AGENT: ${PROD_AGENT}
     NS: ${PROD_NS}
