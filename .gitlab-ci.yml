@@ -36,6 +36,7 @@ variables:
   script:
     - git clone --depth 1 --branch distiller https://gitlab.ebi.ac.uk/ensembl-web/ensembl-k8s-manifests.git
     - cd ensembl-k8s-manifests/ensembl-distiller
+    - sed -i "s#<HOST>#${HOST}.ensembl.org#g" ingress.yaml
     - kustomize edit set image DOCKER_IMAGE=${DOCKER_IMAGE}
     - kubectl apply -k .
     - kubectl rollout status deployment/distiller-backend
@@ -60,6 +61,7 @@ Dev:
   variables:
     AGENT: ${DEV_AGENT}
     NS: ${DEV_NS}
+    HOST: dev-2020
 
 Staging:
   stage: deploy-test
@@ -69,6 +71,7 @@ Staging:
   variables:
     AGENT: ${STAGING_AGENT}
     NS: ${STAGING_NS}
+    HOST: staging-2020
 
 Prod:
   stage: deploy-prod
@@ -80,3 +83,4 @@ Prod:
   variables:
     AGENT: ${PROD_AGENT}
     NS: ${PROD_NS}
+    HOST: beta
