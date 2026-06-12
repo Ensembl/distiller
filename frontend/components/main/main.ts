@@ -1,8 +1,10 @@
 import { html, css, LitElement } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 
 import '../panel-top/panel-top';
 import '../panel-bottom/panel-bottom';
+
+import type { ConfigStore } from '../../state/config-store';
 
 @customElement('ens-data-distiller-main')
 export class TopPanel extends LitElement {
@@ -16,9 +18,14 @@ export class TopPanel extends LitElement {
     }
   `;
 
+  @property({ type: Object })
+  configStore: ConfigStore | null = null;
+
   render() {
     return html`
-      <ens-data-distiller-panel-top></ens-data-distiller-panel-top>
+      <ens-data-distiller-panel-top
+        .configStore=${this.configStore}
+      ></ens-data-distiller-panel-top>
       <ens-data-distiller-panel-bottom></ens-data-distiller-panel-bottom>
     `;
   }

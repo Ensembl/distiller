@@ -48,7 +48,8 @@ export type RangeFilter = {
 export type Filter =
   | FixedListFilter
   | MatchStringFilter
-  | RegexFilter;
+  | RegexFilter
+  | RangeFilter;
 
 
 export type FilterGroup = {
