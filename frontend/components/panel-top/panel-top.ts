@@ -6,6 +6,7 @@ import '../filters/fixed-list-filter';
 import '../filters/match-string-filter';
 import '../filters/regex-filter';
 
+import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
 import { panelStyles } from '../../styles/panel-styles';
 
 import type { FilterGroup } from '../../types/filters';
@@ -17,9 +18,11 @@ import type { LoadingStatus } from '../../types/loading-status';
 @customElement('ens-data-distiller-panel-top')
 export class TopPanel extends LitElement {
   static styles = [
+    resetStyles,
     panelStyles,
     css`
       :host {
+        --top-panel-padding-top: 24px;
         display: grid;
         grid-template-columns: [sidebar] auto [main] 1fr;
         min-height: 200px;
@@ -30,7 +33,7 @@ export class TopPanel extends LitElement {
       .sidebar {
         height: 100%;
         width: 200px;
-        padding-top: 24px;
+        padding-top: var(--top-panel-padding-top);
         padding-left: var(--standard-gutter);
         border-right: 1px solid var(--color-medium-light-grey);
       }
@@ -50,14 +53,23 @@ export class TopPanel extends LitElement {
         font-weight: var(--font-weight-bold);
       }
 
+      .main {
+        padding-left: var(--standard-gutter);
+      }
+
       .filters {
         display: flex;
         align-items: center;
         column-gap: 1.4rem;
+        padding-top: var(--top-panel-padding-top);
       }
 
       .light {
         font-weight: var(--font-weight-light);
+      }
+
+      .filter {
+        padding-top: 24px;
       }
     `
   ];
@@ -111,10 +123,7 @@ export class TopPanel extends LitElement {
   }
 
   render() {
-    return html`
-      ${this.renderSidebar()}
-      ${this.renderMain()}
-    `;
+    return html`${this.renderSidebar()}${this.renderMain()}`;
   }
 
   renderSidebar() {
@@ -167,7 +176,7 @@ export class TopPanel extends LitElement {
             `;
           })}
         </div>
-        <div>
+        <div class="filter">
           ${this.renderFilter()}
         </div>
       </div>
