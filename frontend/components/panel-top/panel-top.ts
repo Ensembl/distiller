@@ -1,4 +1,4 @@
-import { html, css, LitElement } from 'lit';
+import { html, css, nothing, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import '@ensembl/ensembl-elements-common/components/text-button/text-button.js'
 
@@ -51,6 +51,14 @@ export class TopPanel extends LitElement {
 
       .sidebar-navigation ens-text-button {
         font-weight: var(--font-weight-bold);
+      }
+
+      .sidebar-navigation ens-text-button::part(button) {
+        font-weight: var(--font-weight-bold);
+      }
+
+      .sidebar-navigation .active {
+        --text-button-color: var(--color-black);
       }
 
       .main {
@@ -134,9 +142,11 @@ export class TopPanel extends LitElement {
         </div>
         <div class="sidebar-navigation">
           ${this.filterGroups.map(group => {
+            const isSelected = group.id === this.selectedFilterGroupId;
             return html `
               <ens-text-button
                 @click=${() => this.onFilterGroupChange(group.id)}
+                class=${isSelected ? 'active' : nothing as unknown as string}
               >
                 ${group.label}
               </ens-text-button>          
