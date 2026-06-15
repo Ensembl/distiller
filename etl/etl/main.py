@@ -119,13 +119,15 @@ def run_etl() -> None:
         columns=configs.columns,
         release_path=release_path,
     ).run()
+    
+    print("Stage 5: Copying data to DuckDB")
+    with Database(release_path, cli.release) as database:
+        database.run()
 
-    print("Stage 5: Creating final DuckDB configurations")
+    print("Stage 6: Creating final DuckDB configurations")
     with DatabaseConfig(release_path, cli.release, configs.views) as database:
         database.run()
 
-    print("Stage 6: Copying data to DuckDB")
-    with Database(release_path, cli.release) as database:
-        database.run()
+
 
     print("Success!")
