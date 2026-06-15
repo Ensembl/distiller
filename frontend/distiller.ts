@@ -10,10 +10,6 @@ import { createSelectedFiltersStore, type SelectedFiltersStore } from './state/s
 import './components/header/header';
 import './components/main/main';
 
-// import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
-// import { panelStyles } from '../panel/shared-panel-styles';
-
-
 @customElement('ens-data-distiller')
 export class TopPanel extends LitElement {
 
