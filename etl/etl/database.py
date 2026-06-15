@@ -31,6 +31,10 @@ CREATE MACRO column_mapper(ids) AS
 
 MACRO_COLUMN_MAP_ELEMENT = "WHEN {} THEN '{}'"
 
+MACRO_DEFAULT_COLUMNS = """
+CREATE MACRO default_columns() AS [{}];
+"""
+
 VIEW_COLUMN_LINK_COL = """
 ALTER TABLE view_column_link 
 ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter VARCHAR);
@@ -247,6 +251,7 @@ class DatabaseConfig(BaseDatabase):
         # Write merged columns (column metadata + view association)
         col_index = 0
         col_mapping = []
+        default_columns = []
         for column in view.columns:
             col_db_id = self.next_id("view_column")
             col_sql = "INSERT INTO view_column (view_column_id, view_id, name, label, type, sortable, url, delimiter, hidden, rank, enable_by_default, mask) VALUES (?,?,?,?,?,?,?,?,?,?,?, col_mask(?))"  # noqa: E501
@@ -265,6 +270,8 @@ class DatabaseConfig(BaseDatabase):
                 col_index
             )
             col_mapping.append(MACRO_COLUMN_MAP_ELEMENT.format(col_db_id, column.name))
+            if column.enabled and not column.hidden:
+                default_columns.append(f"'{column.name}'")
             col_index += 1
             conn.execute(col_sql, col_params)
         
@@ -272,6 +279,9 @@ class DatabaseConfig(BaseDatabase):
         print(MACRO_COLUMN_MAP_TEMPLATE.format("\n".join(col_mapping)))
         conn.execute(MACRO_COLUMN_MAP_TEMPLATE.format("\n".join(col_mapping)))
         
+        ## create default column macro
+        print(MACRO_DEFAULT_COLUMNS.format(",".join(default_columns)))
+        conn.execute(MACRO_DEFAULT_COLUMNS.format(",".join(default_columns)))
             
         self.create_dataset(view)
 

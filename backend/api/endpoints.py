@@ -21,12 +21,12 @@ def dataset_config(dataset: str):
     return fetch_config(dataset)
 
 @router.get("/{dataset}/records")
-def get_dataset_records(dataset: str, payload:Payload | None ):
+def get_dataset_records(dataset: str, payload:Payload | None = None ):
     return records(dataset)
 
 @router.post("/{dataset}/records")
-def post_dataset_records(dataset: str):
-    return records(dataset)
+def post_dataset_records(dataset: str, payload:Payload):
+    return records(dataset,payload)
 
 @router.get("/{dataset}/records/download")
 def download_dataset_records(dataset: str):
