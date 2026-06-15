@@ -58,7 +58,7 @@ export class TopPanel extends LitElement {
       }
 
       .sidebar-navigation .active {
-        --text-button-color: var(--color-black);
+        --text-button-disabled-color: var(--color-black);
       }
 
       .main {
@@ -70,6 +70,10 @@ export class TopPanel extends LitElement {
         align-items: center;
         column-gap: 1.4rem;
         padding-top: var(--top-panel-padding-top);
+      }
+
+      .filters .active {
+        --text-button-disabled-color: var(--color-black);
       }
 
       .light {
@@ -147,6 +151,7 @@ export class TopPanel extends LitElement {
               <ens-text-button
                 @click=${() => this.onFilterGroupChange(group.id)}
                 class=${isSelected ? 'active' : nothing as unknown as string}
+                ?disabled=${isSelected}
               >
                 ${group.label}
               </ens-text-button>          
@@ -177,9 +182,12 @@ export class TopPanel extends LitElement {
             Filters
           </span>
           ${filterGroup?.filters.map(filter => {
+            const isSelected = filter.id === this.selectedFilterId;
             return html `
               <ens-text-button
                 @click=${() => this.onFilterChange(filter.id)}
+                class=${isSelected ? 'active' : nothing as unknown as string}
+                ?disabled=${isSelected}
               >
                 ${filter.title}
               </ens-text-button>          
