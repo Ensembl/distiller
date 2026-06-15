@@ -15,4 +15,4 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
-app.include_router(api_router, prefix="/api")
+app.include_router(api_router, prefix="/api/distiller")
