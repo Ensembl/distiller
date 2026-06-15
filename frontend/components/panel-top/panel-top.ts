@@ -5,6 +5,7 @@ import '@ensembl/ensembl-elements-common/components/text-button/text-button.js'
 import '../filters/fixed-list-filter';
 import '../filters/match-string-filter';
 import '../filters/regex-filter';
+import '../filters/range-filter';
 
 import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
 import { panelStyles } from '../../styles/panel-styles';
@@ -227,7 +228,11 @@ export class TopPanel extends LitElement {
         ></ens-data-distiller-regex-filter>
       `;
     } else if (filter.type === 'range') {
-      // TODO: implement the filter
+      return html`
+        <ens-data-distiller-range-filter
+          .filterData=${filter}
+        ></ens-data-distiller-range-filter>
+      `;
     }
   }
 }
