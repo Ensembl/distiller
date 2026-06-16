@@ -1,5 +1,6 @@
 import type { Dataset } from '../types/dataset';
 import type { FilterGroup } from '../types/filters';
+import type { TableColumn } from '../types/data-table';
 import type { LoadingStatus } from '../types/loading-status';
 
 export type ConfigState = {
@@ -9,6 +10,7 @@ export type ConfigState = {
   filterGroups: FilterGroup[];
   selectedFilterGroupId: string | null;
   selectedFilterId: string | null;
+  columns: TableColumn[];
 };
 
 const initialState: ConfigState = {
@@ -17,7 +19,8 @@ const initialState: ConfigState = {
   selectedDatasetId: null,
   filterGroups: [],
   selectedFilterGroupId: null,
-  selectedFilterId: null
+  selectedFilterId: null,
+  columns: []
 };
 
 type Subscriber = (state: ConfigState) => void;
@@ -91,6 +94,10 @@ export class ConfigStore {
     this.setSelectedFilterGroupId(firstFilterGroup.id);
 
     this.notify();
+  }
+
+  setColumns(columns: TableColumn[]) {
+    this.state.columns = columns;
   }
 
   setSelectedFilterGroupId(id: string) {

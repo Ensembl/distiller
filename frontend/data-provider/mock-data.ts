@@ -1,4 +1,5 @@
 import type { FilterGroup } from '../types/filters';
+import type { TableColumn } from '../types/data-table';
 
 export const mockDatasetsResponse = {
   datasets: [
@@ -15,6 +16,50 @@ export const mockDatasetsResponse = {
 
 
 export const mockDatasetConfigResponse = {
+  "columns": [
+    {
+      "id": 1,
+      "label": "ID",
+      "is_sortable": false,
+      "enable_by_default": true
+    },
+    {
+      "id": 2,
+      "label": "Class",
+      "is_sortable": true,
+      "enable_by_default": true
+    },
+    {
+      "id": 3,
+      "label": "Stop",
+      "is_sortable": true,
+      "enable_by_default": true
+    },
+    {
+      "id": 4,
+      "label": "Start",
+      "is_sortable": true,
+      "enable_by_default": true
+    },
+    {
+      "id": 7,
+      "label": "Random",
+      "is_sortable": true,
+      "enable_by_default": true
+    },
+    {
+      "id": 8,
+      "label": "Region",
+      "is_sortable": true,
+      "enable_by_default": true
+    },
+    {
+      "id": 9,
+      "label": "Measurement",
+      "is_sortable": false,
+      "enable_by_default": true
+    }
+  ],
   "filter_groups": [
     {
       "id": "default",
@@ -68,5 +113,6 @@ export const mockDatasetConfigResponse = {
     }
   ]
 } as {
-  filter_groups: FilterGroup[]
+  filter_groups: FilterGroup[],
+  columns: TableColumn[]
 };

@@ -5,6 +5,7 @@ import '../panel-top/panel-top';
 import '../panel-bottom/panel-bottom';
 
 import type { ConfigStore } from '../../state/config-store';
+import type { QueryStore } from '../../state/query-store';
 
 @customElement('ens-data-distiller-main')
 export class TopPanel extends LitElement {
@@ -20,6 +21,9 @@ export class TopPanel extends LitElement {
 
   @property({ type: Object })
   configStore: ConfigStore | null = null;
+
+  @property({ type: Object })
+  queryStore: QueryStore | null = null;
 
   render() {
     return html`

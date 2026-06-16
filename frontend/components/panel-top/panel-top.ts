@@ -11,7 +11,9 @@ import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-s
 import { panelStyles } from '../../styles/panel-styles';
 
 import type { FilterGroup } from '../../types/filters';
+import type { TableColumn } from '../../types/data-table';
 import type { ConfigStore } from '../../state/config-store';
+import type { QueryStore } from '../../state/query-store';
 import type { LoadingStatus } from '../../types/loading-status';
 
 // --panel-border-radius: 5px;
@@ -90,6 +92,9 @@ export class TopPanel extends LitElement {
   @property({ type: Object })
   configStore: ConfigStore | null = null;
 
+  @property({ type: Object })
+  queryStore: QueryStore | null = null;
+
   @state()
   loadingStatus: LoadingStatus = 'initial';
 
@@ -97,10 +102,16 @@ export class TopPanel extends LitElement {
   filterGroups: FilterGroup[] = [];
 
   @state()
+  allColumns: TableColumn[] = [];
+
+  @state()
   selectedFilterGroupId: string | null = null;
 
   @state()
   selectedFilterId: string | null = null;
+
+  @state()
+  isShowingColumnsList: boolean = false;
 
   configStoreSubscription: ReturnType<ConfigStore['subscribe']> | null = null;
 
@@ -123,12 +134,20 @@ export class TopPanel extends LitElement {
         if (state.selectedFilterId !== this.selectedFilterId) {
           this.selectedFilterId = state.selectedFilterId;
         }
+        if (state.columns !== this.allColumns) {
+          this.allColumns = state.columns;
+        }
       });
     }
   }
 
   onFilterGroupChange(id: string) {
     this.configStore!.setSelectedFilterGroupId(id);
+    this.isShowingColumnsList = false;
+  }
+
+  onShowColumnsList() {
+    this.isShowingColumnsList = true;
   }
 
   onFilterChange(id: string) {
@@ -147,7 +166,7 @@ export class TopPanel extends LitElement {
         </div>
         <div class="sidebar-navigation">
           ${this.filterGroups.map(group => {
-            const isSelected = group.id === this.selectedFilterGroupId;
+            const isSelected = !this.isShowingColumnsList && group.id === this.selectedFilterGroupId;
             return html `
               <ens-text-button
                 @click=${() => this.onFilterGroupChange(group.id)}
@@ -158,7 +177,11 @@ export class TopPanel extends LitElement {
               </ens-text-button>          
             `;
           })}
-          <ens-text-button>
+          <ens-text-button
+            @click=${this.onShowColumnsList}
+            class=${this.isShowingColumnsList ? 'active' : nothing as unknown as string}
+            ?disabled=${this.isShowingColumnsList}
+          >
             Attributes
           </ens-text-button>
         </div>
@@ -234,5 +257,13 @@ export class TopPanel extends LitElement {
         ></ens-data-distiller-range-filter>
       `;
     }
+  }
+
+  renderColumnsList() {
+    return this.allColumns.map(column => {
+      return html`
+        ${column.label}
+      `;
+    });
   }
 }

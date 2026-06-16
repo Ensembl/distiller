@@ -1,10 +1,10 @@
 import { html, css, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
-import { fetchDatasetsAndFirstDatasetConfig } from './data-provider/data-provider';
+import { fetchDatasets, fetchDatasetConfig } from './data-provider/data-provider';
 
 import { createConfigStore, type ConfigStore } from './state/config-store';
-import { createSelectedFiltersStore, type SelectedFiltersStore } from './state/selected-filters-store';
+import { createQueryStore, type QueryStore } from './state/query-store';
 
 
 import './components/header/header';
@@ -22,31 +22,65 @@ export class TopPanel extends LitElement {
   `;
 
   configStore: ConfigStore = createConfigStore()
-  selectedFiltersStore: SelectedFiltersStore = createSelectedFiltersStore()
+  queryStore: QueryStore = createQueryStore()
+
+  configStoreSubscription: ReturnType<ConfigStore['subscribe']> | null = null;
+  currentDatasetId: string | null = null;
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.fetchInitialConfig();
+    this.#fetchDatasets();
+    this.#setListeners();
   }
 
-  async fetchInitialConfig() {
+  #setListeners() {
+    this.configStoreSubscription = this.configStore.subscribe((state) => {
+      if (state.selectedDatasetId !== this.currentDatasetId) {
+        this.currentDatasetId = state.selectedDatasetId;
+        this.#onDatasetChange();
+      }
+    });
+  }
+
+  async #fetchDatasets() {
     this.configStore.setLoadingStatus('loading');
-    const { datasets, currentDatasetId, filterGroups } = await fetchDatasetsAndFirstDatasetConfig();
+    const datasets = await fetchDatasets();
+    const firstDataset = datasets[0];
+    const firstDatasetId = firstDataset.id;
     this.configStore.setDatasets(datasets);
-    this.configStore.setSelectedDatasetId(currentDatasetId);
-    this.configStore.setFilterGroups(filterGroups);
+    this.configStore.setSelectedDatasetId(firstDatasetId);
+  }
+
+  async #onDatasetChange() {
+    const datasetId = this.currentDatasetId;
+    if (!datasetId) {
+      return;
+    }
+    this.configStore.setLoadingStatus('loading');
+    const datasetConfig = await fetchDatasetConfig({ datasetId });
+
+    const { filter_groups, columns } = datasetConfig;
+
+    this.configStore.setFilterGroups(filter_groups);
+    this.configStore.setColumns(columns);
+
+    // reset the query store
+    this.queryStore.reset();
+
+    const defaultSelectedColumnIds = columns.map(column => column.id);
+    this.queryStore.setSelectedColumnIds(defaultSelectedColumnIds);
+
     this.configStore.setLoadingStatus('success');
   }
 
   render() {
-    const state = this.configStore.getState();
-
     return html`
       <ens-data-distiller-header
         .configStore=${this.configStore}
       ></ens-data-distiller-header>
       <ens-data-distiller-main
         .configStore=${this.configStore}
+        .queryStore=${this.queryStore}
       ></ens-data-distiller-main>
     `;
   }
