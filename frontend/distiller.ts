@@ -6,20 +6,24 @@ import { fetchDatasets, fetchDatasetConfig } from './data-provider/data-provider
 import { createConfigStore, type ConfigStore } from './state/config-store';
 import { createQueryStore, type QueryStore } from './state/query-store';
 
-
 import './components/header/header';
 import './components/main/main';
+
+import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
 
 @customElement('ens-data-distiller')
 export class TopPanel extends LitElement {
 
-  static styles = css`
-    :host {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      height: 100%; // this can be overwritten via the class attribute by parent
-    }
-  `;
+  static styles = [
+    resetStyles,
+    css`
+      :host {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100%; // this can be overwritten via the class attribute by parent
+      }
+    `
+  ];
 
   configStore: ConfigStore = createConfigStore()
   queryStore: QueryStore = createQueryStore()

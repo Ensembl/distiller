@@ -1,6 +1,7 @@
 import { html, css, nothing, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import '@ensembl/ensembl-elements-common/components/text-button/text-button.js'
+import '@ensembl/ensembl-elements-common/components/checkbox/checkbox.js';
 
 import '../filters/fixed-list-filter';
 import '../filters/match-string-filter';
@@ -16,8 +17,6 @@ import type { ConfigStore } from '../../state/config-store';
 import type { QueryStore } from '../../state/query-store';
 import type { LoadingStatus } from '../../types/loading-status';
 
-// --panel-border-radius: 5px;
-
 @customElement('ens-data-distiller-panel-top')
 export class TopPanel extends LitElement {
   static styles = [
@@ -29,7 +28,8 @@ export class TopPanel extends LitElement {
         display: grid;
         grid-template-columns: [sidebar] auto [main] 1fr;
         min-height: 200px;
-        max-height: 360px;
+        height: 30%;
+        height: 200px;
         border-radius: 5px;      
       }
 
@@ -65,6 +65,10 @@ export class TopPanel extends LitElement {
       }
 
       .main {
+        display: grid;
+        height: 100%;
+        min-height: 0;
+        grid-template-rows: auto 1fr;
         padding-left: var(--standard-gutter);
       }
 
@@ -83,8 +87,22 @@ export class TopPanel extends LitElement {
         font-weight: var(--font-weight-light);
       }
 
-      .filter {
+      .main-content {
         padding-top: 24px;
+        height: 100%;
+        min-height: 0;
+      }
+
+      .columns-list {
+        display: flex;
+        flex-direction: column;
+        align-content: flex-start;
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+        column-gap: 2rem;
+        height: 100%;
+        min-height: 0;
+        overflow-x: auto;
       }
     `
   ];
@@ -218,8 +236,11 @@ export class TopPanel extends LitElement {
             `;
           })}
         </div>
-        <div class="filter">
-          ${this.renderFilter()}
+        <div class="main-content">
+          ${this.isShowingColumnsList
+            ? this.renderColumnsList()
+            : this.renderFilter()
+          }
         </div>
       </div>
     `;
@@ -260,10 +281,19 @@ export class TopPanel extends LitElement {
   }
 
   renderColumnsList() {
-    return this.allColumns.map(column => {
+    const checkboxes = this.allColumns.map(column => {
       return html`
-        ${column.label}
+        <ens-checkbox>
+          ${column.label}
+        </ens-checkbox>
+
       `;
     });
+
+    return html`
+      <div class="columns-list">
+        ${checkboxes}
+      </div>
+    `;
   }
 }

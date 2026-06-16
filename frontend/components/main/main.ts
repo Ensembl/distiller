@@ -4,20 +4,26 @@ import { customElement, property } from 'lit/decorators.js';
 import '../panel-top/panel-top';
 import '../panel-bottom/panel-bottom';
 
+import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
+
 import type { ConfigStore } from '../../state/config-store';
 import type { QueryStore } from '../../state/query-store';
 
 @customElement('ens-data-distiller-main')
 export class TopPanel extends LitElement {
-  static styles = css`
-    :host {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      row-gap: 20px;
-      padding: 10px 0 20px;
-      background-color: var(--color-medium-light-grey);
-    }
-  `;
+  static styles = [
+    resetStyles,
+    css`
+      :host {
+        display: grid;
+        height: 100%;
+        grid-template-rows: auto 1fr;
+        row-gap: 20px;
+        padding: 10px 0 20px;
+        background-color: var(--color-medium-light-grey);
+      }
+    `
+  ];
 
   @property({ type: Object })
   configStore: ConfigStore | null = null;
