@@ -168,7 +168,7 @@ export class TopPanel extends LitElement {
     this.isShowingColumnsList = true;
   }
 
-  onFilterChange(id: string) {
+  onSelectedFilterChange(id: string) {
     this.configStore!.setSelectedFilterId(id);
   }
 
@@ -227,7 +227,7 @@ export class TopPanel extends LitElement {
             const isSelected = filter.id === this.selectedFilterId;
             return html `
               <ens-text-button
-                @click=${() => this.onFilterChange(filter.id)}
+                @click=${() => this.onSelectedFilterChange(filter.id)}
                 class=${isSelected ? 'active' : nothing as unknown as string}
                 ?disabled=${isSelected}
               >
