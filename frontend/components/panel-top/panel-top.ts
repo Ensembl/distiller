@@ -281,9 +281,17 @@ export class TopPanel extends LitElement {
   }
 
   renderColumnsList() {
+    const selectedColumnIds = this.queryStore?.getState().selectedColumnIds;
+    if (!selectedColumnIds) {
+      // this should not happen
+      return;
+    }
+
     const checkboxes = this.allColumns.map(column => {
+      const isSelected = selectedColumnIds.includes(column.id);
+
       return html`
-        <ens-checkbox>
+        <ens-checkbox ?checked=${isSelected}>
           ${column.label}
         </ens-checkbox>
 

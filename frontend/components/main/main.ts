@@ -35,6 +35,7 @@ export class TopPanel extends LitElement {
     return html`
       <ens-data-distiller-panel-top
         .configStore=${this.configStore}
+        .queryStore=${this.queryStore}
       ></ens-data-distiller-panel-top>
       <ens-data-distiller-panel-bottom></ens-data-distiller-panel-bottom>
     `;
