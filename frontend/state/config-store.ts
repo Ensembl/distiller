@@ -76,7 +76,7 @@ export class ConfigStore {
   }
 
   setSelectedDatasetId(datasetId: string) {
-    const selectedDataset = this.state.datasets.find(dataset => dataset.id = datasetId);
+    const selectedDataset = this.state.datasets.find(dataset => dataset.id === datasetId);
     if (!selectedDataset) {
       return;
     }
