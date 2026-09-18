@@ -39,13 +39,15 @@ type QueryState = {
   selectedColumnIds: TableColumn['id'][];
   page: number;
   perPage: number;
+  sortBy: string | null;
 }
 
 const initialState: QueryState = {
   selectedFilters: {},
   selectedColumnIds: [],
   page: 1,
-  perPage: 100
+  perPage: 100,
+  sortBy: null
 };
 
 export class QueryStore {

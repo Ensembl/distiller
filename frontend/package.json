@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite ./playground",
     "storybook": "storybook dev -p 9001 -c .storybook",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test-watch:node": "vitest",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ensembl/ensembl-elements-common": "0.0.5-dev",
@@ -15,8 +16,10 @@
   },
   "devDependencies": {
     "@storybook/web-components-vite": "10.4.1",
+    "@types/node": "26.6.1",
     "storybook": "10.4.1",
     "typescript": "6.0.3",
-    "vite": "8.0.15"
+    "vite": "8.0.15",
+    "vitest": "5.0.1"
   }
 }
