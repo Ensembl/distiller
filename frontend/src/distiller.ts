@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 
 import { fetchDatasets, fetchDatasetConfig } from './data-provider/data-provider';
 
-import { createConfigStore, type ConfigStore } from './state/config-store';
+import { createConfigStore, type ConfigStore, type ConfigState } from './state/config-store';
 import { createQueryStore, type QueryStore } from './state/query-store';
 
 import './components/header/header';
@@ -29,52 +29,69 @@ export class TopPanel extends LitElement {
   queryStore: QueryStore = createQueryStore()
 
   configStoreSubscription: ReturnType<ConfigStore['subscribe']> | null = null;
-  currentDatasetId: string | null = null;
 
-  connectedCallback(): void {
+  connectedCallback() {
     super.connectedCallback();
     this.#fetchDatasets();
     this.#setListeners();
   }
 
+  disconnectedCallback() {
+    this.#removeListeners();
+    super.disconnectedCallback();
+  }
+
   #setListeners() {
-    this.configStoreSubscription = this.configStore.subscribe((state) => {
-      if (state.selectedDatasetId !== this.currentDatasetId) {
-        this.currentDatasetId = state.selectedDatasetId;
-        this.#onDatasetChange();
+    this.configStoreSubscription = this.configStore.subscribe((stateChange) => {
+      if (stateChange.key === 'selectedDatasetId') {
+        this.#onDatasetChange({
+          datasetId: this.configStore.state.selectedDatasetId
+        });
       }
     });
   }
 
+  #removeListeners() {
+    this.configStoreSubscription?.unsubscribe();
+  }
+
   async #fetchDatasets() {
-    this.configStore.setLoadingStatus('loading');
+    this.configStore.actions.setLoadingStatus('loading');
     const datasets = await fetchDatasets();
     const firstDataset = datasets[0];
     const firstDatasetId = firstDataset.id;
-    this.configStore.setDatasets(datasets);
-    this.configStore.setSelectedDatasetId(firstDatasetId);
+    this.configStore.actions.setDatasets(datasets);
+    this.configStore.actions.setSelectedDatasetId(firstDatasetId);
   }
 
-  async #onDatasetChange() {
-    const datasetId = this.currentDatasetId;
+  async #onDatasetChange({
+    datasetId
+  }: {
+    datasetId: ConfigState['selectedDatasetId'];
+  }) {
     if (!datasetId) {
       return;
     }
-    this.configStore.setLoadingStatus('loading');
+    this.configStore.actions.setLoadingStatus('loading');
     const datasetConfig = await fetchDatasetConfig({ datasetId });
+
+    // check against a race condition (e.g. use switching datasets before response arrives)
+    if (datasetId !== this.configStore.state.selectedDatasetId) {
+      return;
+    }
 
     const { filter_groups, columns } = datasetConfig;
 
-    this.configStore.setFilterGroups(filter_groups);
-    this.configStore.setColumns(columns);
+    this.configStore.actions.setFilterGroups(filter_groups);
+    this.configStore.actions.setColumns(columns);
 
     // reset the query store
-    this.queryStore.reset();
+    this.queryStore.actions.reset();
 
     const defaultSelectedColumnIds = columns.map(column => column.id);
-    this.queryStore.setSelectedColumnIds(defaultSelectedColumnIds);
+    this.queryStore.actions.setSelectedColumnIds(defaultSelectedColumnIds);
 
-    this.configStore.setLoadingStatus('success');
+    this.configStore.actions.setLoadingStatus('success');
   }
 
   render() {

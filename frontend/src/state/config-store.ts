@@ -1,3 +1,5 @@
+import { createStore } from './reactive-store';
+
 import type { Dataset } from '../types/dataset';
 import type { FilterGroup } from '../types/filters';
 import type { TableColumn } from '../types/data-table';
@@ -23,9 +25,119 @@ const initialState: ConfigState = {
   columns: []
 };
 
+
+export const createConfigStore = () => {
+  const stateClone = structuredClone(initialState);
+  const store = createStore(stateClone);
+
+  const actions = {
+    setLoadingStatus(loadingStatus: LoadingStatus) {
+      store.state.loadingStatus = loadingStatus;
+    },
+
+    setDatasets(datasets: Dataset[]) {
+      store.state.datasets = datasets;
+
+      // select the first dataset bu default
+      const firstDataset = datasets[0];
+      this.setSelectedDatasetId(firstDataset.id);
+    },
+
+    setSelectedDatasetId(datasetId: string) {
+      const selectedDataset = store.state.datasets
+        .find(dataset => dataset.id === datasetId);
+
+      if (!selectedDataset) {
+        return;
+      }
+
+      store.state.selectedDatasetId = datasetId;
+    },
+
+    setFilterGroups(filterGroups: FilterGroup[]) {
+      // update filter groups
+      store.state.filterGroups = filterGroups;
+
+      // select the first filter group by default
+      const firstFilterGroup = filterGroups[0];
+      this.setSelectedFilterGroupId(firstFilterGroup.id);
+    },
+
+    setColumns(columns: TableColumn[]) {
+      store.state.columns = columns;
+    },
+
+    setSelectedFilterGroupId(id: string) {
+      // update selected filter group id
+      const filterGroup = store.state.filterGroups
+        .find(group => group.id === id);
+      if (!filterGroup) {
+        return;
+      }
+      store.state.selectedFilterGroupId = id;
+
+      // select the first filter in the group by default
+      const firstFilter = filterGroup.filters[0];
+      this.setSelectedFilterId(firstFilter.id);
+    },
+
+    setSelectedFilterId(id: string) {
+      const filterGroup = store.state.filterGroups
+        .find(group => group.id === store.state.selectedFilterGroupId);
+      const filter = filterGroup?.filters.find(filter => filter.id === id);
+      if (!filter) {
+        return;
+      }
+      store.state.selectedFilterId = id;
+    },
+
+    clear() {
+      Object.assign(
+        store.state,
+        structuredClone(initialState)
+      );
+    }
+  };
+
+  return {
+    ...store,
+    actions,
+  };
+};
+
+export type ConfigStore = ReturnType<typeof createConfigStore>;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+
+
+
 type Subscriber = (state: ConfigState) => void;
 
-export class ConfigStore {
+export class XConfigStore {
   state: ConfigState;
 
   subscriptions: Set<Subscriber>;
@@ -135,6 +247,9 @@ export class ConfigStore {
 };
 
 
-export const createConfigStore = () => {
-  return new ConfigStore();
-};
+// export const createConfigStore = () => {
+//   return new ConfigStore();
+// };
+
+
+ */

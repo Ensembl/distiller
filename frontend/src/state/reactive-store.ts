@@ -1,15 +1,25 @@
-export type StoreChange = {
-  target: object;
-  key: PropertyKey;
-  previousValue: unknown;
-  value: unknown;
-};
+export type StoreChange =
+  | {
+      type: 'set';
+      target: object;
+      key: PropertyKey;
+      previousValue: unknown;
+      value: unknown;
+    }
+  | {
+      type: 'delete';
+      target: object;
+      key: PropertyKey;
+      previousValue: unknown;
+      value: undefined;
+    };
 
 export type StoreListener = (change: StoreChange) => void;
+export type StoreSubscription = { unsubscribe: () => void };
 
 export interface Store<T extends object> {
   readonly state: T;
-  subscribe(listener: StoreListener): () => void;
+  subscribe(listener: StoreListener): StoreSubscription;
 }
 
 export function createStore<T extends object>(initialState: T): Store<T> {
@@ -50,6 +60,7 @@ export function createStore<T extends object>(initialState: T): Store<T> {
 
         if (updated) {
           notify({
+            type: 'set',
             target: receiver,
             key,
             previousValue,
@@ -58,6 +69,27 @@ export function createStore<T extends object>(initialState: T): Store<T> {
         }
 
         return updated;
+      },
+
+      deleteProperty(target, key) {
+        if (!Reflect.has(target, key)) {
+          return true;
+        }
+
+        const previousValue = Reflect.get(target, key);
+        const deleted = Reflect.deleteProperty(target, key);
+
+        if (deleted) {
+          notify({
+            type: 'delete',
+            target: proxy,
+            key,
+            previousValue,
+            value: undefined,
+          });
+        }
+
+        return deleted;
       }
     });
 
@@ -68,11 +100,13 @@ export function createStore<T extends object>(initialState: T): Store<T> {
   return {
     state: wrap(initialState),
 
-    subscribe(listener: StoreListener): () => void {
+    subscribe(listener: StoreListener) {
       listeners.add(listener);
 
-      return () => {
-        listeners.delete(listener);
+      return {
+        unsubscribe: () => {
+          listeners.delete(listener);
+        }
       };
     },
   };

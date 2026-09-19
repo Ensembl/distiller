@@ -1,3 +1,5 @@
+import { createStore } from './reactive-store';
+
 import type { TableColumn } from "../types/data-table";
 
 type SelectedFixedListFilter = {
@@ -50,78 +52,47 @@ const initialState: QueryState = {
   sortBy: null
 };
 
-export class QueryStore {
-  state: QueryState;
-
-  subscriptions: Set<(state: QueryState) => void>;
-
-  #isNotificationQueued = false;
-
-  constructor() {
-    this.state = structuredClone(initialState);
-    this.subscriptions = new Set();
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  subscribe(fn: (state: QueryState) => void) {
-    fn(this.state);
-    this.subscriptions.add(fn);
-    const unsubscribe = () => this.subscriptions.delete(fn);
-    return unsubscribe;
-  }
-
-  // batch all notifications into a single animation frame
-  notify() {
-    if (this.#isNotificationQueued) {
-      return
-    } {
-      this.#isNotificationQueued = true;
-      requestAnimationFrame(() => {
-        this.subscriptions.forEach(fn => fn(this.state));
-        this.#isNotificationQueued = false;
-      });
-    }
-  }
-
-  setFilter(filter: SelectedFilter) {
-    this.state.selectedFilters[filter.id] = filter;
-    this.state.page = 1;
-    this.notify();
-  }
-
-  removeFilter(filterId: string) {
-    delete this.state.selectedFilters[filterId];
-    this.state.page = 1;
-    this.notify();
-  }
-
-  setSelectedColumnIds(columnIds: QueryState['selectedColumnIds']) {
-    this.state.selectedColumnIds = columnIds;
-    this.notify();
-  }
-
-  setPage(page: number) {
-    this.state.page = page;
-    this.notify();
-  }
-
-  setPerPage(perPage: number) {
-    this.state.perPage = perPage;
-    this.state.page = 1;
-    this.notify();
-  }
-
-  reset() {
-    this.state = structuredClone(initialState);
-    this.notify();
-  }
-
-};
-
 
 export const createQueryStore = () => {
-  return new QueryStore();
+  const stateClone = structuredClone(initialState);
+  const store = createStore(stateClone);
+
+  const actions = {
+    setFilter(filter: SelectedFilter) {
+      store.state.selectedFilters[filter.id] = filter;
+      store.state.page = 1;
+    },
+
+    removeFilter(filterId: string) {
+      delete store.state.selectedFilters[filterId];
+      store.state.page = 1;
+    },
+
+    setSelectedColumnIds(columnIds: QueryState['selectedColumnIds']) {
+      store.state.selectedColumnIds = columnIds;
+    },
+
+    setPage(page: number) {
+      store.state.page = page;
+    },
+
+    setPerPage(perPage: number) {
+      store.state.perPage = perPage;
+      store.state.page = 1;
+    },
+
+    reset() {
+      Object.assign(
+        store.state,
+        structuredClone(initialState)
+      );
+    }
+  };
+
+  return {
+    ...store,
+    actions,
+  };
 };
+
+export type QueryStore = ReturnType<typeof createQueryStore>;

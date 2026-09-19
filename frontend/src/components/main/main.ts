@@ -26,10 +26,10 @@ export class TopPanel extends LitElement {
   ];
 
   @property({ type: Object })
-  configStore: ConfigStore | null = null;
+  configStore!: ConfigStore;
 
   @property({ type: Object })
-  queryStore: QueryStore | null = null;
+  queryStore!: QueryStore;
 
   render() {
     return html`

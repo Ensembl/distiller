@@ -11,11 +11,8 @@ import '../filters/range-filter';
 import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
 import { panelStyles } from '../../styles/panel-styles';
 
-import type { FilterGroup } from '../../types/filters';
-import type { TableColumn } from '../../types/data-table';
 import type { ConfigStore } from '../../state/config-store';
 import type { QueryStore } from '../../state/query-store';
-import type { LoadingStatus } from '../../types/loading-status';
 
 @customElement('ens-data-distiller-panel-top')
 export class TopPanel extends LitElement {
@@ -108,59 +105,57 @@ export class TopPanel extends LitElement {
   ];
 
   @property({ type: Object })
-  configStore: ConfigStore | null = null;
+  configStore!: ConfigStore;
 
   @property({ type: Object })
-  queryStore: QueryStore | null = null;
-
-  @state()
-  loadingStatus: LoadingStatus = 'initial';
-
-  @state()
-  filterGroups: FilterGroup[] = [];
-
-  @state()
-  allColumns: TableColumn[] = [];
-
-  @state()
-  selectedFilterGroupId: string | null = null;
-
-  @state()
-  selectedFilterId: string | null = null;
+  queryStore!: QueryStore;
 
   @state()
   isShowingColumnsList: boolean = false;
 
   configStoreSubscription: ReturnType<ConfigStore['subscribe']> | null = null;
+  queryStoreSubscription: ReturnType<QueryStore['subscribe']> | null = null;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.#subscribeToConfigStore();
+    this.#subscribeToQueryStore();
+  }
 
   disconnectedCallback(): void {
     this.configStoreSubscription?.unsubscribe();
+    this.queryStoreSubscription?.unsubscribe();
+    super.disconnectedCallback();
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    if (changedProperties.has('configStore') && this.configStore) {
-      this.configStoreSubscription = this.configStore.subscribe((state) => {
-        if (state.loadingStatus !== this.loadingStatus) {
-          this.loadingStatus = state.loadingStatus;
-        }
-        if (state.filterGroups !== this.filterGroups) {
-          this.filterGroups = state.filterGroups;
-        }
-        if (state.selectedFilterGroupId !== this.selectedFilterGroupId) {
-          this.selectedFilterGroupId = state.selectedFilterGroupId;
-        }
-        if (state.selectedFilterId !== this.selectedFilterId) {
-          this.selectedFilterId = state.selectedFilterId;
-        }
-        if (state.columns !== this.allColumns) {
-          this.allColumns = state.columns;
-        }
-      });
-    }
+  #subscribeToConfigStore() {
+    this.configStoreSubscription = this.configStore.subscribe((stateChange) => {
+      const trackedKeys = [
+        'loadingStatus',
+        'filterGroups',
+        'selectedFilterGroupId',
+        'selectedFilterId',
+        'columns'
+      ];
+      if (trackedKeys.includes(stateChange.key as string)) {
+        this.requestUpdate();
+      }
+    });
   }
 
-  onFilterGroupChange(id: string) {
-    this.configStore!.setSelectedFilterGroupId(id);
+  #subscribeToQueryStore() {
+    this.queryStoreSubscription = this.queryStore.subscribe((stateChange) => {
+      const trackedKeys = [
+        'selectedColumnIds'
+      ];
+      if (trackedKeys.includes(stateChange.key as string)) {
+        this.requestUpdate();
+      }
+    });
+  }
+
+  #onFilterGroupChange(id: string) {
+    this.configStore.actions.setSelectedFilterGroupId(id);
     this.isShowingColumnsList = false;
   }
 
@@ -169,7 +164,7 @@ export class TopPanel extends LitElement {
   }
 
   onSelectedFilterChange(id: string) {
-    this.configStore!.setSelectedFilterId(id);
+    this.configStore.actions.setSelectedFilterId(id);
   }
 
   render() {
@@ -177,17 +172,25 @@ export class TopPanel extends LitElement {
   }
 
   renderSidebar() {
+    if (!this.configStore) {
+      return null;
+    }
+
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+
+
     return html`
       <div class="sidebar">
         <div class="sidebar-title">
           Data
         </div>
         <div class="sidebar-navigation">
-          ${this.filterGroups.map(group => {
-            const isSelected = !this.isShowingColumnsList && group.id === this.selectedFilterGroupId;
+          ${filterGroups.map(group => {
+            const isSelected = !this.isShowingColumnsList && group.id === selectedFilterGroupId;
             return html `
               <ens-text-button
-                @click=${() => this.onFilterGroupChange(group.id)}
+                @click=${() => this.#onFilterGroupChange(group.id)}
                 class=${isSelected ? 'active' : nothing as unknown as string}
                 ?disabled=${isSelected}
               >
@@ -208,14 +211,19 @@ export class TopPanel extends LitElement {
   }
 
   renderMain() {
-    if (!this.filterGroups.length && this.loadingStatus === 'loading') {
+    const loadingStatus = this.configStore.state.loadingStatus;
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+    const selectedFilterId = this.configStore.state.selectedFilterId;
+
+    if (!filterGroups.length && loadingStatus === 'loading') {
       return 'Loading...';
     }
-    if (!this.filterGroups.length) {
+    if (!filterGroups.length) {
       return null;
     }
 
-    const filterGroup = this.filterGroups.find(group => group.id === this.selectedFilterGroupId);
+    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
 
     return html`
       <div class="main">
@@ -224,7 +232,7 @@ export class TopPanel extends LitElement {
             Filters
           </span>
           ${filterGroup?.filters.map(filter => {
-            const isSelected = filter.id === this.selectedFilterId;
+            const isSelected = filter.id === selectedFilterId;
             return html `
               <ens-text-button
                 @click=${() => this.onSelectedFilterChange(filter.id)}
@@ -247,8 +255,12 @@ export class TopPanel extends LitElement {
   }
 
   renderFilter() {
-    const filterGroup = this.filterGroups.find(group => group.id === this.selectedFilterGroupId);
-    const filter = filterGroup?.filters.find(filter => filter.id === this.selectedFilterId);
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+    const selectedFilterId = this.configStore.state.selectedFilterId;
+
+    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
+    const filter = filterGroup?.filters.find(filter => filter.id === selectedFilterId);
     if (!filter) {
       return;
     }
@@ -281,13 +293,10 @@ export class TopPanel extends LitElement {
   }
 
   renderColumnsList() {
-    const selectedColumnIds = this.queryStore?.getState().selectedColumnIds;
-    if (!selectedColumnIds) {
-      // this should not happen
-      return;
-    }
+    const selectedColumnIds = this.queryStore.state.selectedColumnIds;
+    const allColumns = this.configStore.state.columns;
 
-    const checkboxes = this.allColumns.map(column => {
+    const checkboxes = allColumns.map(column => {
       const isSelected = selectedColumnIds.includes(column.id);
 
       return html`
