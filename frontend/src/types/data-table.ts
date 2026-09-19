@@ -1,5 +1,5 @@
 export type TableColumn = {
-  id: string;
+  id: number | string;
   label: string;
   is_sortable: boolean;
   enable_by_default: boolean;
