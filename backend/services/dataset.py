@@ -59,6 +59,10 @@ def generate_records_query(
         sort_var = f"set variable sort_by = list_first(column_mapper([{sort_by}]));"
         sort_stmt = f"ORDER BY COLUMNS(getvariable('sort_by')) {'ASC' if asc else 'DESC'} NULLS LAST"
 
+    page = max(page, 1)
+    page_size = max(page_size, 1)
+    offset = (page - 1) * page_size
+
     sql = f"""
     SET VARIABLE selected_cols = {column_call};
     {sort_var}
@@ -68,7 +72,7 @@ def generate_records_query(
     )
     SELECT {{
     "columns":ARRAY(SELECT details FROM column_details where name in getvariable('selected_cols')),
-    "rows":ARRAY(SELECT struct_pack(*COLUMNS(*)) FROM col_select LIMIT {page_size} OFFSET {page}),
+    "rows":ARRAY(SELECT struct_pack(*COLUMNS(*)) FROM col_select LIMIT {page_size} OFFSET {offset}),
     "meta":{{
         'total_hits':list_first(ARRAY(SELECT COUNT(*) FROM dataset_view)),
         'page':{page},
