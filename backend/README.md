@@ -47,6 +47,51 @@ The distiller backend uses `uvicorn` as its application server. It can be starte
 
 `uv run uvicorn --host 0.0.0.0 --port 8000 main:app`
 
+### Container image
+
+The repository root includes a `Dockerfile` that packages the backend for container platforms such as Kubernetes.
+
+Build the image from the repository root with:
+
+```bash
+docker build -t distiller-backend .
+```
+
+At runtime, mount the backend config JSON and any DuckDB dataset files into the container and point `DISTILLER_CONFIG` at the mounted config path if you do not use the default `/app/config.json`.
+
+### Kubernetes deployment
+
+Backend deployment manifests live in `k8s/backend` and are intended to be applied with `kustomize`.
+
+- `configmap.yaml` mounts the backend `config.json`
+- `pvc.yaml` provides shared storage for DuckDB datasets under `/data`
+- `deployment.yaml` runs the backend container and mounts both volumes
+- `service.yaml` exposes the backend on port `8000`
+- `ingress.yaml` routes the backend URL to the service
+
+Update the dataset paths in `k8s/backend/configmap.yaml` to match the DuckDB files available on the mounted volume before deploying.
+
+To upload a DuckDB file from your local machine into the mounted PVC using an existing backend pod:
+
+```bash
+# Set namespace and local file path
+NS=dev-namespace
+LOCAL_DUCKDB=./example.duckdb
+TARGET_FILE=example.duckdb
+
+# Pick one running backend pod (all replicas mount the same PVC)
+POD=$(kubectl -n "$NS" get pod -l ensembl.platform.app.name=distiller -o jsonpath='{.items[0].metadata.name}')
+
+# Copy to a temporary name first, then atomically move into place
+kubectl -n "$NS" cp "$LOCAL_DUCKDB" "$POD":/data/"$TARGET_FILE".tmp
+kubectl -n "$NS" exec "$POD" -- mv /data/"$TARGET_FILE".tmp /data/"$TARGET_FILE"
+
+# Verify the file exists on the volume
+kubectl -n "$NS" exec "$POD" -- ls -lh /data
+```
+
+If you keep the same file path in the dataset config, a restart is not usually needed. If you change the dataset path in `config.json`, restart the deployment so the backend reloads config.
+
 ## Endpoints 
 
 ### /datasets
