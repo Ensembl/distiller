@@ -18,10 +18,10 @@ from pydantic import TypeAdapter
 from etl.cli import get_cli_args
 from etl.config import validate_dataset
 from etl.database import Database, DatabaseConfig
-from etl.dataset import DatasetsProcessor
-from etl.models import Config, Dataset, validate_config
+from etl.data import DataProcessor
+from etl.models import Config, DataSource, validate_config
 from etl.transform import Transform
-from etl.views import ViewsProcessor
+from etl.dataset import DatasetProcessor
 
 CONFIG_SCHEMA_FILE = "config.json"
 DATA_SCHEMA_FILE = "dataset.json"
@@ -61,7 +61,7 @@ def validate_configs(config: Any, data: Any, schemas: str) -> None:
     """
     Validate config and dataset
     """
-    #config_schema = _load_schema(schemas, CONFIG_SCHEMA_FILE, "config")
+    # config_schema = _load_schema(schemas, CONFIG_SCHEMA_FILE, "config")
     data_schema = _load_schema(schemas, DATA_SCHEMA_FILE, "data")
     # validate config
     validate_config(config)
@@ -96,30 +96,30 @@ def run_etl() -> None:
 
     print("Stage 1: Validating ETL configurations")
     validate_configs(config_dict, data_dict, cli.schema)
-    datasets = TypeAdapter(list[Dataset]).validate_python(data_dict)
+    data_sources = TypeAdapter(list[DataSource]).validate_python(data_dict)
 
     configs = Config.model_validate(config_dict)
 
     print("Stage 2: Running first pass ETL")
-    Transform(datasets=datasets, release_path=release_path).run()
+    Transform(datasets=data_sources, release_path=release_path).run()
 
     print("Stage 3: Creating dataset configuration files")
-    DatasetsProcessor(
-        datasets=datasets,
-        views=configs.views,
+    DataProcessor(
+        data_sources=data_sources,
+        dataset_info=configs.dataset,
         columns=configs.columns,
         release_path=release_path,
     ).run()
 
     print("Stage 4: Preconfiguring filter values")
-    ViewsProcessor(
-        views=configs.views,
+    DatasetProcessor(
+        dataset=configs.dataset,
         filters=configs.filters,
-        datasets=datasets,
+        data_sources=data_sources,
         columns=configs.columns,
         release_path=release_path,
     ).run()
-    
+
     print("Stage 5: Copying data to DuckDB")
     with Database(release_path, cli.release) as database:
         database.run()
@@ -127,7 +127,5 @@ def run_etl() -> None:
     print("Stage 6: Creating final DuckDB configurations")
     with DatabaseConfig(release_path, cli.release, configs.views) as database:
         database.run()
-
-
 
     print("Success!")
