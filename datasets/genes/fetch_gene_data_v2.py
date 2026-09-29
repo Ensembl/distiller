@@ -8,7 +8,7 @@ import requests
 from pymongo import MongoClient
 
 
-METADATA_API_BASE_URL = "https://beta.ensembl.org/api/metadata"
+METADATA_API_BASE_URL = "https://ensembl.org/api/metadata"
 
 
 def get_mongo_client():
