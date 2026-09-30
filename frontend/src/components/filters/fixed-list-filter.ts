@@ -21,6 +21,29 @@ export class FixedListFilter extends LitElement {
   @property({ type: Object })
   filterData: FixedListFilterType | null = null;
 
+  // TODO: selected values
+
+  #values: string[] = [];
+
+  onChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const value = target.dataset.value as string;
+    const isChecked = target.checked;
+
+    if (isChecked) {
+      // add to internal values list
+      this.#values.push(value);
+    } else {
+      // remove from internal values list
+      this.#values = this.#values.filter(storedValue => value !== storedValue);
+    }
+
+    const outgoingEvent = new CustomEvent('change', {
+      detail: [...this.#values]
+    });
+    this.dispatchEvent(outgoingEvent);
+  }
+
   render() {
     if (!this.filterData) {
       return null;
@@ -28,7 +51,10 @@ export class FixedListFilter extends LitElement {
 
     const checkboxes = this.filterData.options.map((option) => {
       return html`
-        <ens-checkbox>
+        <ens-checkbox
+          data-value=${option.value}
+          @change=${this.onChange}
+        >
           ${option.label}
         </ens-checkbox>
       `
