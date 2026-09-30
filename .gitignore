@@ -2,3 +2,13 @@
 node_modules
 dist
 _site
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+
+.DS_Store
+.vscode/
+
+datasets/genes/*_genes.csv
