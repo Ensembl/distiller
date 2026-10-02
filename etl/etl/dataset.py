@@ -33,8 +33,8 @@ class DatasetProcessor:
     configure this to be different from the cell contents if needed e.g. lowercasing, trimming, adding prefixes etc.
 
     Attributes:
-        - datasets: list[Dataset] of datasets available to link to a view
-        - views: list[View] of views to process
+        - dataSource: list[DataSource] of datasets available to link to a view
+        - dataset: DatasetInfo detailing dataset
         - filters: list[Filter] of all available filters
         - columns: dict[str,dict[str,Column]] of per-view column overrides, keyed by view id
         - release_path: Path where to write data to
@@ -45,40 +45,49 @@ class DatasetProcessor:
         self,
         dataset: DatasetInfo,
         filters: list[Filter],
+        filter_groups: list[FilterGroup],
         data_sources: list[DataSource],
-        columns: dict[str, dict[str, Column]],
+        columns: list[Column],
         release_path: Path,
         warn_max: int = 60,
     ):
         self.dataset = dataset
         self.filters = filters
+        self.filter_groups = filter_groups
         self.data_sources = data_sources
         self.columns = columns
         self.release_path = release_path
         self.warn_max = warn_max
 
+    def _get_filters_for_group(
+        filters: dict[str, Filter], filter_group: FilterGroup
+    ) -> list[Filter]:
+        f_results: list[Filter] = []
+        for f in filter_group.filters:
+            f_results.append(filters[f.id])
+        return f_results
+
     def run(self) -> None:
+        filter_dict = {f.id: f for f in self.filters}
         with duckdb.connect() as conn:
             data_source = self.get_data_source(self.dataset.source)
-            self.validate_query_columns(self.dataset, data_source)
+            self.validate_query_columns(self.columns, self.filters)
             # normalised_groups = self.normalise_to_groups(view)
             group_rank = 1
-            for group in self.dataset.filter_groups:
+            for group in self.filter_groups:
                 group.rank = group_rank
                 group_rank += 1
                 filter_rank = 1
-                for view_filter in group.filters:
+                for filter in DatasetProcessor._get_filters_for_group(
+                    filter_dict, group
+                ):
                     self.process_filter(
-                        self.dataset, view_filter, data_source.parquet_path, conn
+                        self.dataset, filter, data_source.parquet_path, conn
                     )
-                    view_filter.rank = filter_rank
+                    filter.rank = filter_rank
                     filter_rank += 1
-                # For auto-wrapped groups (size 1), use the filter's
-                # resolved label as the group label
-                if len(group.filters) == 1 and group.filters[0].label:
-                    group.group_label = group.filters[0].label
             # Replace view.filters with the normalised groups
-            self.populate_additional_columns(self.dataset)
+            self.populate_additional_columns(self.dataset, self.columns)
             self.write_view(self.dataset)
 
     def process_filter(
@@ -139,75 +148,66 @@ ORDER BY label ASC
         return filter_values
 
     def validate_query_columns(
-        self, dataset: DatasetInfo, data_source: DataSource
+        self, columns: list[Column], filters: list[Filter]
     ) -> None:
         """Validate that all query_columns referenced in filters exist in the source."""
-        if dataset.columns is None:
+        if columns is None:
             return
 
-        available_columns = {c.name for c in dataset.columns if c.name is not None}
-
-        for group in dataset.filter_groups:
-            for vf in group.filters:
-                filter_def = self.get_filter_definition(dataset, vf)
-                extra = filter_def.extras
-                if extra is None:
-                    # config is only used for complex filter types such as regex
-                    continue
-                elif isinstance(extra, dict):
+        # available_columns = {c.name for c in dataset.columns if c.name is not None}
+        for filter_def in filters:
+            extra = filter_def.extras
+            if extra is None:
+                # config is only used for complex filter types such as regex
+                continue
+            elif isinstance(extra, dict):
+                raise FilterError(f"Error with extras, not parsed to a model '{extra}'")
+            elif isinstance(extra, RegexExtras):
+                if filter_def.regex is None:
                     raise FilterError(
-                        f"Error with extras, not parsed to a model '{extra}'"
+                        f"Error Regex not set when extras is set! '{extra}'"
                     )
-                elif isinstance(extra, RegexExtras):
-                    if filter_def.regex is None:
-                        raise FilterError(
-                            f"Error Regex not set when extras is set! '{extra}'"
-                        )
-                    regex = re.compile(filter_def.regex)
+                regex = re.compile(filter_def.regex)
 
-                    registered_regex_keys = [field.regex_name for field in extra.fields]
-                    regex_keys = regex.groupindex.keys()
-                    if len(registered_regex_keys) != len(regex_keys):
+                registered_regex_keys = [field.regex_name for field in extra.fields]
+                regex_keys = regex.groupindex.keys()
+                if len(registered_regex_keys) != len(regex_keys):
+                    raise FilterError(
+                        f"Filter '{filter_def.id}' regex role "
+                        "Registered REGEX keys does not match found REGEX keys,"
+                        f"registered: {len(registered_regex_keys)}, "
+                        f"found: {len(regex_keys)}"
+                    )
+
+                for pattern_name in regex_keys:
+                    if pattern_name not in registered_regex_keys:
                         raise FilterError(
                             f"Filter '{filter_def.id}' regex role "
-                            "Registered REGEX keys does not match found REGEX keys,"
-                            f"registered: {len(registered_regex_keys)}, "
-                            f"found: {len(regex_keys)}"
+                            f"'{pattern_name}' was not registered"
                         )
 
-                    for pattern_name in regex_keys:
-                        if pattern_name not in registered_regex_keys:
-                            raise FilterError(
-                                f"Filter '{filter_def.id}' regex role "
-                                f"'{pattern_name}' was not registered"
-                            )
-
-    def _get_column_override(self, view_id: str, column_name: str) -> Column | None:
+    def _get_column_override(
+        self, columns: list[Column], column_name: str
+    ) -> Column | None:
         """Look up a per-view column override."""
-        view_overrides = self.columns.get(view_id, {})
-        return view_overrides.get(column_name)
+        for c in columns:
+            if c.name == column_name:
+                return c
 
-    def _enrich_view_column(
-        self, view_col: Column, ds_column: Column, view_id: str
-    ) -> None:
+    def _enrich_view_column(self, view_col: Column, ds_column: Column) -> None:
         """Enrich a ViewColumn with metadata from the dataset column + per-view override."""
-        override = self._get_column_override(view_id, view_col.name)
-        if override is not None:
-            view_col.label = override.label if override.label else ds_column.label
-            view_col.type = override.type
-            view_col.sortable = override.sortable
-            view_col.url = override.url
-            view_col.delimiter = override.delimiter
-            view_col.hidden = override.hidden or False
-        else:
-            view_col.label = ds_column.label
-            view_col.type = ds_column.type
-            view_col.sortable = ds_column.sortable
-            view_col.url = ds_column.url
-            view_col.delimiter = ds_column.delimiter
-            view_col.hidden = ds_column.hidden or False
+        view_col.label = view_col.label if view_col.label else ds_column.label
+        view_col.type = ds_column.type
+        view_col.sortable = view_col.sortable if view_col else ds_column.sortable
+        view_col.url = view_col.url if view_col.url else ds_column.url
+        view_col.delimiter = (
+            view_col.delimiter if view_col.delimiter else ds_column.delimiter
+        )
+        view_col.hidden = view_col.hidden if view_col.hidden else False
 
-    def populate_additional_columns(self, dataset: DatasetInfo) -> None:
+    def populate_additional_columns(
+        self, dataset: DatasetInfo, columns: list[Column]
+    ) -> None:
         dataset_columns = self.get_data_source(dataset.source).columns
         if dataset_columns is None:
             return
@@ -221,21 +221,21 @@ ORDER BY label ASC
         rank = 1
         seen: dict[str, bool] = {}
         # Rank existing columns, record seen, and enrich with metadata
-        for column in dataset.columns:
+        for column in columns:
             column.rank = rank
             rank = rank + 1
             seen[column.name] = True
             ds_col = ds_col_lookup.get(column.name)
             if ds_col:
-                self._enrich_view_column(column, ds_col, dataset.id)
+                self._enrich_view_column(column, ds_col)
 
         # Add remaining columns (including hidden ones)
         if dataset.include_remaining_columns:
             for ds_column in dataset_columns:
                 if ds_column.name is not None and ds_column.name not in seen:
                     new_col = Column(name=ds_column.name, rank=rank)
-                    self._enrich_view_column(new_col, ds_column, dataset.id)
-                    dataset.columns.append(new_col)
+                    self._enrich_view_column(new_col, ds_column)
+                    columns.append(new_col)
                     rank = rank + 1
 
     def write_view(self, dataset: DatasetInfo) -> Path:

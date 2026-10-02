@@ -5,7 +5,14 @@ from typing import Any, Self
 
 import duckdb
 
-from etl.models import DatasetInfo, FilterGroup, RegexExtras, FIXED_LIST_FILTER_TYPE
+from etl.models import (
+    DatasetInfo,
+    Column,
+    Filter,
+    FilterGroup,
+    RegexExtras,
+    FIXED_LIST_FILTER_TYPE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,11 +104,17 @@ class DatabaseConfig(BaseDatabase):
         self,
         release_path: Path,
         release: str,
-        view: DatasetInfo,
+        dataset: DatasetInfo,
+        columns: list[Column],
+        filters: list[Filter],
+        filter_groups: list[FilterGroup],
         schema_version: str = schema_version,
     ):
         BaseDatabase.__init__(self, release_path, release)
-        self.view = view
+        self.dataset = dataset
+        self.columns = columns
+        self.filters = filters
+        self.filter_groups = filter_groups
         self.schema_version = schema_version
         self.ids: dict[str, int] = {}
 
@@ -116,7 +129,7 @@ class DatabaseConfig(BaseDatabase):
         # get dataset table
         # select visible columns
         # get column details
-        cols = [c for c in view.columns if not c.hidden]
+        cols = [c for c in self.columns if not c.hidden]
         col_lookup = {c.name: c for c in cols}
         col_names = [c.name for c in cols]
         col_args = ", ".join(["?" for x in range(len(col_names))])
@@ -159,8 +172,8 @@ class DatabaseConfig(BaseDatabase):
     def run(self) -> None:
         self.load_schema()
 
-        logging.info(f"Processing {self.view.name}, filters and columns")
-        self.write_view(self.view)
+        logging.info(f"Processing {self.dataset.name}, filters and columns")
+        self.write_dataset()
         logging.info("Finished")
         self.generate_release()
 
@@ -189,42 +202,47 @@ class DatabaseConfig(BaseDatabase):
 
         return True
 
-    def write_view(self, view: DatasetInfo) -> None:
+    def write_dataset(self) -> None:
         conn = self.conn
-        view_db_id = self.next_id("view")
 
         # Define the view with source instead of dataset_id
         conn.execute(
-            'INSERT INTO "view" (view_id, id, name, url_name, source) VALUES (?,?,?,?,?)',  # noqa: E501
-            (view_db_id, view.id, view.name, view.url_name, view.source),
+            "INSERT INTO dataset (id, name, url_name, source) VALUES (?,?,?,?)",  # noqa: E501
+            (
+                self.dataset.id,
+                self.dataset.name,
+                self.dataset.url_name,
+                self.dataset.source,
+            ),
         )
 
         # Write filter groups and their filters
         # After view processing, view.filters is a list[ViewFilterGroup]
-        for group in view.filter_groups:
+        for group in self.filter_groups:
             assert isinstance(group, FilterGroup)
-            group_db_id = self.next_id("view_filter_group")
-            group_sql = "INSERT INTO view_filter_group (view_filter_group_id, view_id, id, label, rank) VALUES (?,?,?,?,?)"  # noqa: E501
+            group_db_id = self.next_id("filter_group")
+            group_sql = "INSERT INTO filter_group (filter_group_id, id, label, rank) VALUES (?,?,?,?)"  # noqa: E501
             conn.execute(
                 group_sql,
                 (
                     group_db_id,
-                    view_db_id,
                     group.group_id,
                     group.group_label,
                     group.rank,
                 ),
             )
 
-            for view_filter in group.filters:
-                view_filter_db_id = self.next_id("view_filter")
-                filter_sql = "INSERT INTO view_filter (view_filter_id, view_filter_group_id, id, label, title, example, filter_type, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
-                # Generate a unique DB id by prefixing with the view id
-                db_filter_id = f"{view.id}_{view_filter.id}"
+            selected_filters = [f.id for f in group.filters]
 
-                extras = view_filter.extras
-                if view_filter.type == "regex" and view_filter.extras:
-                    e: RegexExtras = view_filter.extras
+            for f in list(filter(lambda f: f.id in selected_filters, self.filters)):
+                filter_db_id = self.next_id("filter")
+                filter_sql = "INSERT INTO filter (filter_id, filter_group_id, id, label, title, example, filter_type, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
+                # Generate a unique DB id by prefixing with the view id
+                db_filter_id = f"{f.id}"
+
+                extras = f.extras
+                if f.type == "regex" and f.extras:
+                    e: RegexExtras = f.extras
                     self.write_regex_macro(db_filter_id, e)
 
                 if extras:
@@ -233,28 +251,25 @@ class DatabaseConfig(BaseDatabase):
                     extras_dump = "{}"
 
                 filter_params = (
-                    view_filter_db_id,
+                    filter_db_id,
                     group_db_id,
                     db_filter_id,
-                    view_filter.label,
-                    view_filter.title,
-                    view_filter.example,
-                    view_filter.type,
-                    view_filter.rank,
-                    view_filter.min,
-                    view_filter.max,
+                    f.label,
+                    f.title,
+                    f.example,
+                    f.type,
+                    f.rank,
+                    f.min,
+                    f.max,
                     extras_dump,
-                    view_filter.regex,
+                    f.regex,
                 )
                 conn.execute(filter_sql, filter_params)
-                if (
-                    view_filter.type == FIXED_LIST_FILTER_TYPE
-                    and view_filter.filter_values is not None
-                ):
-                    for value in view_filter.filter_values:
-                        value_sql = "INSERT INTO view_filter_value (view_filter_id, value, label) VALUES (?,?,?)"  # noqa: E501
+                if f.type == FIXED_LIST_FILTER_TYPE and f.filter_values is not None:
+                    for value in f.filter_values:
+                        value_sql = "INSERT INTO filter_value (view_filter_id, value, label) VALUES (?,?,?)"  # noqa: E501
                         value_params = (
-                            view_filter_db_id,
+                            filter_db_id,
                             value["value"],
                             value["label"],
                         )
@@ -264,12 +279,11 @@ class DatabaseConfig(BaseDatabase):
         col_index = 0
         col_mapping = []
         default_columns = []
-        for column in view.columns:
-            col_db_id = self.next_id("view_column")
-            col_sql = "INSERT INTO view_column (view_column_id, view_id, name, label, type, sortable, url, delimiter, hidden, rank, enable_by_default, mask) VALUES (?,?,?,?,?,?,?,?,?,?,?, col_mask(?))"  # noqa: E501
+        for column in self.columns:
+            col_db_id = self.next_id("column_info")
+            col_sql = "INSERT INTO column_info (column_id, name, label, type, sortable, url, delimiter, hidden, rank, enable_by_default) VALUES (?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
             col_params = (
                 col_db_id,
-                view_db_id,
                 column.name,
                 column.label,
                 column.type,
@@ -279,7 +293,6 @@ class DatabaseConfig(BaseDatabase):
                 column.hidden,
                 column.rank,
                 column.enabled,
-                col_index,
             )
             col_mapping.append(MACRO_COLUMN_MAP_ELEMENT.format(col_db_id, column.name))
             if column.enabled and not column.hidden:
@@ -295,7 +308,7 @@ class DatabaseConfig(BaseDatabase):
         print(MACRO_DEFAULT_COLUMNS.format(",".join(default_columns)))
         conn.execute(MACRO_DEFAULT_COLUMNS.format(",".join(default_columns)))
 
-        self.create_dataset(view)
+        self.create_dataset(self.dataset)
 
     def generate_release(self) -> None:
         sql = "INSERT INTO release (release_label, schema_version) VALUES (strftime(current_date(),'%Y-%m'), ?)"  # noqa: E501

@@ -19,7 +19,11 @@ from etl.cli import get_cli_args
 from etl.config import validate_dataset
 from etl.database import Database, DatabaseConfig
 from etl.data import DataProcessor
-from etl.models import Config, DataSource, validate_config
+from etl.models import (
+    Config,
+    DataSource,
+    validate_config as validate_config_against_model,
+)
 from etl.transform import Transform
 from etl.dataset import DatasetProcessor
 
@@ -57,14 +61,14 @@ def load_data(path: str | Path) -> Any:
             )
 
 
-def validate_configs(config: Any, data: Any, schemas: str) -> None:
+def validate_config(config: Any, data: Any, schemas: str) -> None:
     """
     Validate config and dataset
     """
     # config_schema = _load_schema(schemas, CONFIG_SCHEMA_FILE, "config")
     data_schema = _load_schema(schemas, DATA_SCHEMA_FILE, "data")
     # validate config
-    validate_config(config)
+    validate_config_against_model(config)
     # validate dataset
     validate_dataset(data, data_schema)
 
@@ -95,10 +99,10 @@ def run_etl() -> None:
     release_path = create_release(cli.release, overwrite=cli.force)
 
     print("Stage 1: Validating ETL configurations")
-    validate_configs(config_dict, data_dict, cli.schema)
+    validate_config(config_dict, data_dict, cli.schema)
     data_sources = TypeAdapter(list[DataSource]).validate_python(data_dict)
 
-    configs = Config.model_validate(config_dict)
+    config = Config.model_validate(config_dict)
 
     print("Stage 2: Running first pass ETL")
     Transform(datasets=data_sources, release_path=release_path).run()
@@ -106,17 +110,18 @@ def run_etl() -> None:
     print("Stage 3: Creating dataset configuration files")
     DataProcessor(
         data_sources=data_sources,
-        dataset_info=configs.dataset,
-        columns=configs.columns,
+        dataset_info=config.info,
+        columns=config.columns,
         release_path=release_path,
     ).run()
 
     print("Stage 4: Preconfiguring filter values")
     DatasetProcessor(
-        dataset=configs.dataset,
-        filters=configs.filters,
+        dataset=config.info,
+        filters=config.filters,
+        filter_groups=config.filter_groups,
         data_sources=data_sources,
-        columns=configs.columns,
+        columns=config.columns,
         release_path=release_path,
     ).run()
 
@@ -125,7 +130,14 @@ def run_etl() -> None:
         database.run()
 
     print("Stage 6: Creating final DuckDB configurations")
-    with DatabaseConfig(release_path, cli.release, configs.views) as database:
+    with DatabaseConfig(
+        release_path,
+        cli.release,
+        config.info,
+        config.columns,
+        config.filters,
+        config.filter_groups,
+    ) as database:
         database.run()
 
     print("Success!")

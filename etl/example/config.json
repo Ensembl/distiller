@@ -1,4 +1,11 @@
 {
+    "info":{
+        "id" : "test_dataset",
+        "name":"Test data set",
+        "source":"test",
+        "url_name":"test",
+        "include_remaining_columns" : true,
+    },
     "filters":[
         {
             "id":"id",
@@ -53,13 +60,7 @@
             "max":1001
         }
     ],
-    "dataset": {
-        "id" : "test_dataset",
-        "name":"Test data set",
-        "source":"test",
-        "url_name":"test",
-        "include_remaining_columns" : true,
-        "filter_groups" : [
+    "filter_groups" : [
             {
                 "group_id": "default",
                 "group_label": "Filters",
@@ -76,29 +77,30 @@
                     {"id": "start" }
                 ]
             }
-        ],
-          "columns":[
-              { "name": "id", "enabled":true },
-              { "name": "class" },
-              { "name": "stop" }
-        ]
-    },
-    "columns":{
-        "id":{
+    ],
+    "columns":[
+        {
+            "name":"id",
+            "enambled":true,
             "sortable": false,
             "label" : "ID",
             "type":"link",
             "url":"https://www.domain.com/ID/{}"
         },
-        "gen_measurement": {
+        {"name": "class" },
+        {"name": "stop" },
+        {
+            "name": "gen_measurement",
             "label":"Measurement",
             "sortable": false
         },
-        "measurement": {
+        {
+            "name":"measurement",
             "hidden": true
         },
-        "unit": {
+        {
+            "name":"unit",
             "hidden": true
         }
-    }
+    ]
 }

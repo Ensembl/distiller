@@ -29,7 +29,7 @@ class DataProcessor:
         self,
         data_sources: list[DataSource],
         dataset_info: DatasetInfo,
-        columns: dict[str, dict[str, Column]],
+        columns: list[Column],
         release_path: Path,
     ):
         self.sources = data_sources
@@ -59,7 +59,7 @@ class DataProcessor:
 
                 if self.dataset_info.source != name:
                     continue
-                dataset_overrides = self.columns.get(self.dataset_info.id, {})
+                dataset_overrides = {c.name: c for c in self.columns}
                 for col_name in dataset_overrides:
                     if col_name not in real_names:
                         raise DatasetsProcessorError(

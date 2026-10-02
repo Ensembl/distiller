@@ -11,9 +11,7 @@ CREATE TABLE filter_group (
     filter_group_id INTEGER PRIMARY KEY,
     "id" VARCHAR NOT NULL,
     "label" VARCHAR NOT NULL,
-    rank INTEGER NOT NULL,
-    FOREIGN KEY (view_id) REFERENCES view(view_id),
-    UNIQUE(view_id, "id")
+    rank INTEGER NOT NULL
 );
 
 -- Filter definitions linked to a view via a group
@@ -43,8 +41,8 @@ CREATE TABLE filter_value (
     UNIQUE(filter_id, value, label)
 );
 
--- Column metadata and view association (merged column_def + view_column)
-CREATE TABLE column (
+-- Column_info metadata and view association (merged column_def + view_column)
+CREATE TABLE column_info (
     column_id INTEGER PRIMARY KEY,
     "name" VARCHAR NOT NULL,
     "label" VARCHAR NOT NULL,
@@ -54,9 +52,8 @@ CREATE TABLE column (
     "delimiter" VARCHAR,
     hidden BOOLEAN NOT NULL DEFAULT false,
     rank INTEGER NOT NULL,
-    mask UINT32 NOT NULL,
     enable_by_default BOOLEAN NOT NULL DEFAULT true,
-    UNIQUE (column, "name")
+    UNIQUE (column_id, "name")
 );
 
 --CREATE TABLE IF NOT EXISTS view_column_link (
@@ -101,7 +98,7 @@ SELECT
     c.sortable,
     c.url,
     c."delimiter"
-FROM column c
+FROM column_info c
 ORDER BY c.rank;
 
 -- Config payload views -----------------------------------------
@@ -123,17 +120,16 @@ CREATE OR REPLACE VIEW filters_as_json AS SELECT {
   "example":f.example,
   "min":f.min,
   "max":f.max,
-  "regex":regexp_replace(vf.regex,'(\?[Pp]\<[a-zA-Z\_0-9\-]+\>)','','g'),
+  "regex":regexp_replace(f.regex,'(\?[Pp]\<[a-zA-Z\_0-9\-]+\>)','','g'),
   "options":ARRAY(SELECT values_json FROM filter_values_as_json WHERE filter_id = f.filter_id )
 }::json as filter_json, filter_group_id from filter as f;
 
 CREATE OR REPLACE VIEW filter_groups_as_json AS SELECT {
-  "id":vfg.id,
-  "label":vfg.label,
+  "id":fg.id,
+  "label":fg.label,
   "filters":ARRAY(SELECT filter_json FROM filters_as_json where filter_group_id = fg.filter_group_id)
 }::json AS group_json,
-fg.view_id AS view_id
-FROM filter_group AS vfg
+FROM filter_group AS fg
 ORDER BY fg.rank ASC;
 
 CREATE OR REPLACE VIEW columns_as_json AS SELECT 
@@ -143,8 +139,7 @@ CREATE OR REPLACE VIEW columns_as_json AS SELECT
 "is_sortable":sortable,
 "enable_by_default":enable_by_default, 
 }::json as col_json,
-view_id
-FROM column
+FROM column_info
 WHERE hidden=false
 ORDER BY rank ASC;
 
@@ -163,12 +158,12 @@ name,
   "style":type,
   "label":"label",
   "sortable":sortable
-} as details FROM column order by rank;
+} as details FROM column_info order by rank;
 
 
 -- Macros
 
---- Column id to name macros
+--- Column_info id to name macros
 
 ---- column_map generated during ETL run
 

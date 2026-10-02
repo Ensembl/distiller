@@ -31,6 +31,10 @@ class RegexExtras(BaseModel):
 # ── View models ──
 
 
+class FilterId(BaseModel):
+    id: str
+
+
 class Filter(BaseModel):
     id: str
     target_column: str
@@ -50,7 +54,7 @@ class FilterGroup(BaseModel):
     group_id: str
     group_label: str
     rank: int | None = None
-    filters: list[Filter]
+    filters: list[FilterId]
 
 
 class Column(BaseModel):
@@ -72,8 +76,6 @@ class DatasetInfo(BaseModel):
     name: str
     source: str
     include_remaining_columns: bool = False
-    filter_groups: list[FilterGroup]
-    columns: list[Column]
 
 
 # ── Top-level config ──
@@ -81,12 +83,24 @@ class DatasetInfo(BaseModel):
 
 class Config(BaseModel):
     filters: list[Filter]
-    dataset: DatasetInfo
-    columns: dict[str, dict[str, Column]] = {}  # keyed by view id
+    filter_groups: list[FilterGroup]
+    info: DatasetInfo
+    columns: list[Column]
 
 
 def validate_config(config_data: dict[str, Any]) -> bool:
-    Config.model_validate(config_data)
+    print("-----------------------------------")
+    print(config_data)
+    print("-----------------------------------")
+    config = Config.model_validate(config_data)
+    filter_names = [f.id for f in config.filters]
+
+    for g in config.filter_groups:
+        for gf in g.filters:
+            if gf.id not in filter_names:
+                raise ValueError(
+                    f"Unknown filter {gf.id} found in filter group {g.group_id}"
+                )
 
     # check required fields for filters
     # - regex - regex has groups. group names match extras
