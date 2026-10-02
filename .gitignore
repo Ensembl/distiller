@@ -7,4 +7,12 @@ venv/
 .DS_Store
 .vscode/
 
-datasets/genes/*_genes.csv
+# backend & ETL
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Frontend
+node_modules
+dist
+_site
