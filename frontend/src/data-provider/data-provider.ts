@@ -1,7 +1,15 @@
-import { mockDatasetsResponse, mockDatasetConfigResponse } from './mock-data';
+import appConfig from '../configs/app-config';
+
+import type { Dataset, DatasetConfig } from '../types/dataset';
+import type { TableColumn, TableData } from '../types/data-table';
 
 export const fetchDatasets = async () => {
-  const { datasets } = await Promise.resolve(mockDatasetsResponse);
+  const response = await fetch(`${appConfig.apiBaseUrl}/datasets`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch datasets: ${response.statusText}`);
+  }
+
+  const { datasets }: { datasets: Dataset[] } = await response.json();
   return datasets;
 };
 
@@ -10,35 +18,39 @@ export const fetchDatasetConfig = async ({
 }: {
   datasetId: string | number;
 }) => {
-  const datasetConfig = await Promise.resolve(mockDatasetConfigResponse);
+  const response = await fetch(`${appConfig.apiBaseUrl}/dataset/${datasetId}/dataset-config`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dataset config: ${response.statusText}`);
+  }
+
+  const datasetConfig: DatasetConfig = await response.json();
   return datasetConfig;
 };
 
+export const fetchRecords = async ({
+  datasetId,
+  columnIds,
+  page,
+  perPage
+}: {
+  datasetId: string;
+  columnIds: TableColumn['id'][];
+  page: number;
+  perPage: number;
+}) => {
+  const response = await fetch(`${appConfig.apiBaseUrl}/dataset/${datasetId}/records`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      columns: columnIds,
+      page,
+      per_page: perPage
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch records: ${response.statusText}`);
+  }
 
-
-/**
-
-TODO: query the endpoint that returns the tabular data
-
-The proposed payload (https://github.com/Ensembl/distiller/pull/6)
-
-
-curl -X POST "http://localhost:8000/api/distiller/dataset/gene/records" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "columns":[1,2,5,6,8],
-    "page":1,
-    "per_page":100,
-    "filters":[
-      "filter_id":"gene_view_gene_symbol",
-      "filter_value":"PPP2R2A"
-    ],
-    "order_by":{
-      "column_id":1,
-      "order":"DESC"
-    }
-  }'
-
- */
-
-
+  const tableData: TableData = await response.json();
+  return tableData;
+};

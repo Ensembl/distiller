@@ -6,23 +6,34 @@ export type TableColumn = {
 };
 
 export type StringData = {
-  type: 'string';
-  column_id: string;
-  value: string | null;
+  style: 'string';
+  value: string;
 };
 
 export type LinkData = {
-  type: 'link';
-  column_id: string;
-  value: string | null;
-  url: string | null;
+  style: 'link';
+  value: {
+    label: string;
+    url: string;
+  };
 };
 
-export type LinkArrayData = {
-  type: 'link-array';
-  column_id: string;
-  values: Array<{
-    value: string;
-    url: string | null;
+export type TableCell = StringData | LinkData;
+
+export type TableRow = Record<string, TableCell>;
+
+export type TableData = {
+  columns: Array<{
+    id: number;
+    name: string;
+    label: string;
+    style: TableCell['style'];
+    sortable: boolean;
   }>;
+  rows: TableRow[];
+  meta: {
+    total_hits: number;
+    page: number;
+    per_page: number;
+  };
 };
