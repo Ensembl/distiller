@@ -267,7 +267,7 @@ class DatabaseConfig(BaseDatabase):
                 conn.execute(filter_sql, filter_params)
                 if f.type == FIXED_LIST_FILTER_TYPE and f.filter_values is not None:
                     for value in f.filter_values:
-                        value_sql = "INSERT INTO filter_value (view_filter_id, value, label) VALUES (?,?,?)"  # noqa: E501
+                        value_sql = "INSERT INTO filter_value (filter_id, value, label) VALUES (?,?,?)"  # noqa: E501
                         value_params = (
                             filter_db_id,
                             value["value"],

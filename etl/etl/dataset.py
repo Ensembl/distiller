@@ -11,7 +11,6 @@ from etl.models import (
     Filter,
     RegexExtras,
     DatasetInfo,
-    Column,
     Filter,
     FilterGroup,
     FIXED_LIST_FILTER_TYPE,
@@ -114,9 +113,9 @@ class DatasetProcessor:
             filter.filter_values = filter_values
 
     def get_filter_definition(self, dataset: DatasetInfo, filter: Filter) -> Filter:
-        for filter in self.filters:
-            if filter.id == filter.id:
-                return filter
+        for target_filter in self.filters:
+            if filter.id == target_filter.id:
+                return target_filter
         raise FilterError(
             f"Cannot find the filter '{filter.id}' in the view '{dataset.name}'"  # noqa: E501
         )
