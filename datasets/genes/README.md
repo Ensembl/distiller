@@ -1,5 +1,28 @@
 # Gene Mapping
 
+Generate gene dataset for a specific release database
+```bash
+MONGO_DB_URI="mongodb://<username>:<password>@<host>/?authSource=admin" python3 datasets/genes/fetch_gene_data_v2.py --release_db release_110_1
+```
+
+Generate gene dataset for all release databases
+```bash
+MONGO_DB_URI="mongodb://<username>:<password>@<host>/?authSource=admin" python3 datasets/genes/fetch_gene_data_v2.py --all_release_dbs
+```
+
+Generate gene dataset for specific genome UUIDs
+```bash
+MONGO_DB_URI="mongodb://<username>:<password>@<host>/?authSource=admin" python3 datasets/genes/fetch_gene_data_v2.py --genome_uuids 59871324-7803-4234-856e-2a2bd96d7b3c a7335667-93e7-11ec-a39d-005056b38ce3
+```
+
+Generate gene dataset for specific genome UUIDs, but only for the latest genomes (can be applied for all options above)
+```bash
+MONGO_DB_URI="mongodb://<username>:<password>@<host>/?authSource=admin" python3 datasets/genes/fetch_gene_data_v2.py --genome_uuids 59871324-7803-4234-856e-2a2bd96d7b3c a7335667-93e7-11ec-a39d-005056b38ce3 --latest_genomes_only
+```
+
+
+---
+
 ## Thoas query
 
 ```json
@@ -169,4 +192,3 @@ For each gene returned:
 | slice_location_length                 |  gene["slice"]["location"]["length"]                                      |
 | slice_strand_code                     |  gene["slice"]["strand"]["code"]                                          |
 | slice_strand_value                    |  gene["slice"]["strand"]["value"]                                         |        
-
