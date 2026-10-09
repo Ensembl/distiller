@@ -489,6 +489,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--all_release_dbs", action="store_true", help="Gene data from all release databases")
     group.add_argument("--release_db", type=str, help="Gene data from a specific release database")
+    group.add_argument("--release_dbs", type=str, nargs="+", help="Gene data from a list of release databases")
     group.add_argument("--genome_uuids", type=str, nargs="+", help="Gene data for a list of genome uuids")
     parser.add_argument("--latest_genomes_only", action="store_true", help="Only fetch gene data for latest genome uuids")
     args = parser.parse_args()
@@ -499,6 +500,10 @@ if __name__ == "__main__":
         fetch_gene_data_for_all_release_dbs(args.latest_genomes_only)
     elif args.release_db:
         fetch_gene_data_for_release_db(args.release_db, args.latest_genomes_only)
+    elif args.release_dbs:
+        fetch_gene_data_for_release_dbs(
+            release_dbs_newest_first(args.release_dbs), "release_dbs_genes.csv", args.latest_genomes_only
+        )
     elif args.genome_uuids:
         fetch_gene_data_for_genome_uuids(args.genome_uuids, args.latest_genomes_only)
     else:
