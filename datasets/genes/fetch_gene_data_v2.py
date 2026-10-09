@@ -2,6 +2,7 @@ import csv
 from _csv import Writer as CsvWriter
 import argparse
 import os
+import re
 from datetime import timedelta
 from functools import lru_cache
 from time import perf_counter
@@ -257,11 +258,14 @@ def parse_gene_row(gene: Document, region_details: RegionDetails) -> list[Any]:
     name_metadata = gene.get("metadata", {}).get("name", {})
     name_source_id = name_metadata.get("source", {}).get("id") or ""
     name_source = load_xref_sources().get(name_source_id.lower(), {})
+    alternative_symbols = ", ".join(
+        f"'{symbol}'" for symbol in gene.get("alternative_symbols") or []
+    )
 
     return [
         gene.get("symbol", ""), # symbol
         gene.get("name", ""), # name
-        gene.get("alternative_symbols", []), # alternative_symbols
+        f"[{alternative_symbols}]", # alternative_symbols
         gene.get("stable_id", ""), # stable_id
         gene.get("version", ""), # version
         gene.get("unversioned_stable_id", ""), # unversioned_stable_id
@@ -305,6 +309,24 @@ def all_genome_ids_release_db_mapping() -> dict[str, list[str]]:
     return mapping
 
 
+def release_dbs_newest_first(release_dbs: list[str]) -> list[str]:
+    """
+    Sort release databases from newest to oldest, using the two numbers in
+    the name. Names that do not look like release_<number>_<number>, such as
+    test databases, are left out.
+
+    Example, for ["release_110_1", "release_116_8", "release_test_116_3"]:
+        ["release_116_8", "release_110_1"]
+    """
+    release_db_versions = {}
+    for release_db in release_dbs:
+        match = re.fullmatch(r"release_(\d+)_(\d+)", release_db)
+        if match:
+            release_db_versions[release_db] = (int(match[1]), int(match[2]))
+
+    return sorted(release_db_versions, key=lambda release_db: release_db_versions[release_db], reverse=True)
+
+
 def fetch_gene_data_for_all_release_dbs(latest_genomes_only: bool = False) -> None:
     print("Fetching gene data for all release databases")
 
@@ -314,17 +336,26 @@ def fetch_gene_data_for_all_release_dbs(latest_genomes_only: bool = False) -> No
             if name.startswith("release_"):
                 release_dbs.append(name)
 
-    for release_db in release_dbs:
-        fetch_gene_data_for_release_db(release_db, latest_genomes_only)
+    fetch_gene_data_for_release_dbs(
+        release_dbs_newest_first(release_dbs), "all_release_dbs_genes.csv", latest_genomes_only
+    )
 
 
 def fetch_gene_data_for_release_db(release_db: str, latest_genomes_only: bool = False) -> None:
-    print(f"Fetching gene data for release database: {release_db}")
+    fetch_gene_data_for_release_dbs(
+        [release_db], f"{release_db}_genes.csv", latest_genomes_only
+    )
 
+
+def fetch_gene_data_for_release_dbs(
+    release_dbs: list[str],
+    output_file: str,
+    latest_genomes_only: bool = False
+) -> None:
     rows = []
     write_count = 0
     batch_size = 5_000
-    output_file = f"{release_db}_genes.csv"
+    seen_genome_uuids = set()
 
     with get_mongo_client() as client, open(
         output_file,
@@ -333,40 +364,54 @@ def fetch_gene_data_for_release_db(release_db: str, latest_genomes_only: bool = 
         encoding="utf-8",
         buffering=1024 * 1024,
     ) as f:
-        
+
         writer = csv.writer(f)
         write_header_row(writer)
 
-        query = {}
-        if latest_genomes_only:
-            latest_genome_uuids = latest_genome_uuids_for_release_db(client, release_db)
-            query = {"genome_id": {"$in": latest_genome_uuids}}
+        for release_db in release_dbs:
+            print(f"Fetching gene data for release database: {release_db}")
 
-        genes = client[release_db].gene.find(query).batch_size(batch_size)
-        region_details_by_genome_uuid = {}
+            latest_genome_uuids = []
+            if latest_genomes_only:
+                latest_genome_uuids = latest_genome_uuids_for_release_db(client, release_db)
 
-        for gene in genes:
-            genome_uuid = gene.get("genome_id")
-            if genome_uuid not in region_details_by_genome_uuid:
-                region_details_by_genome_uuid[genome_uuid] = region_details_for_genome_uuid(
-                    client[release_db], genome_uuid
-                )
+            genome_uuids = []
+            for genome_uuid in client[release_db].genome.distinct("genome_id"):
+                if genome_uuid in seen_genome_uuids:
+                    continue
+                seen_genome_uuids.add(genome_uuid)
 
-            gene_row = parse_gene_row(gene, region_details_by_genome_uuid[genome_uuid])
-            rows.append(gene_row)
+                if latest_genomes_only and genome_uuid not in latest_genome_uuids:
+                    continue
 
-            if len(rows) >= batch_size:
-                writer.writerows(rows)
-                write_count += len(rows)
-                print(f"Added {write_count} rows to {output_file}")
-                rows = []
+                genome_uuids.append(genome_uuid)
+
+            query = {"genome_id": {"$in": genome_uuids}}
+            genes = client[release_db].gene.find(query).batch_size(batch_size)
+            region_details_by_genome_uuid = {}
+
+            for gene in genes:
+                genome_uuid = gene.get("genome_id")
+                if genome_uuid not in region_details_by_genome_uuid:
+                    region_details_by_genome_uuid[genome_uuid] = region_details_for_genome_uuid(
+                        client[release_db], genome_uuid
+                    )
+
+                gene_row = parse_gene_row(gene, region_details_by_genome_uuid[genome_uuid])
+                rows.append(gene_row)
+
+                if len(rows) >= batch_size:
+                    writer.writerows(rows)
+                    write_count += len(rows)
+                    print(f"Added {write_count} rows to {output_file}")
+                    rows = []
 
         if rows:
             writer.writerows(rows)
             write_count += len(rows)
             print(f"Added {write_count} rows to {output_file}")
 
-        print(f"Finished writing gene data for {release_db} to {output_file}")
+    print(f"Finished writing gene data to {output_file}")
 
 
 def fetch_gene_data_for_genome_uuids(genome_uuids: list[str], latest_genomes_only: bool = False) -> None:
@@ -384,13 +429,12 @@ def fetch_gene_data_for_genome_uuids(genome_uuids: list[str], latest_genomes_onl
             print(f"Skipping non-latest genome_uuid: {genome_uuid}")
             continue
         
-        release_dbs = mapping.get(genome_uuid)
+        release_dbs = release_dbs_newest_first(mapping.get(genome_uuid, []))
         if not release_dbs:
             print(f"No release database found for genome uuid: {genome_uuid}")
             continue
 
-        for release_db in release_dbs:
-            genome_uuid_release_dbs.append((genome_uuid, release_db))
+        genome_uuid_release_dbs.append((genome_uuid, release_dbs[0]))
 
     if not genome_uuid_release_dbs:
         print("No release databases found for any genome uuid")
