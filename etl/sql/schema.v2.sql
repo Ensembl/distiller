@@ -128,7 +128,7 @@ CREATE OR REPLACE VIEW filter_groups_as_json AS SELECT {
   "id":fg.id,
   "label":fg.label,
   "filters":ARRAY(SELECT filter_json FROM filters_as_json where filter_group_id = fg.filter_group_id)
-}::json AS group_json,
+}::json AS group_json
 FROM filter_group AS fg
 ORDER BY fg.rank ASC;
 
