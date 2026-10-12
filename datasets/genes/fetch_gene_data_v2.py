@@ -187,12 +187,16 @@ def assembly_details_for_assembly_id(db: Database, assembly_id: str | None) -> D
         }
     """
     assembly = db.assembly.find_one({"assembly_id": assembly_id}) or {}
-    organism = db.organism.find_one(
-        {"organism_primary_key": assembly.get("organism_foreign_key")}
-    ) or {}
-    species = db.species.find_one(
-        {"species_primary_key": organism.get("species_foreign_key")}
-    ) or {}
+    organism = {}
+    organism_key = assembly.get("organism_foreign_key")
+    if organism_key is not None:
+        organism = db.organism.find_one({"organism_primary_key": organism_key}) or {}
+
+    species = {}
+    species_key = organism.get("species_foreign_key")
+    if species_key is not None:
+        species = db.species.find_one({"species_primary_key": species_key}) or {}
+
     return {
         "assembly_accession_id": assembly.get("accession_id", ""),
         "organism_scientific_name": organism.get("scientific_name", ""),
