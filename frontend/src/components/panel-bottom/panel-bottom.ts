@@ -8,6 +8,9 @@ import '@ensembl/ensembl-elements-common/components/external-link/external-link.
 import '@ensembl/ensembl-elements-common/components/select/select.js';
 import '@ensembl/ensembl-elements-common/components/paginator/paginator.js';
 import '@ensembl/ensembl-elements-common/components/table/sortable-column-header.js';
+import '@ensembl/ensembl-elements-common/components/icon-buttons/delete-button/delete-button.js';
+import '@ensembl/ensembl-elements-common/components/icon-buttons/download-button/download-button.js';
+import '@ensembl/ensembl-elements-common/components/icon-buttons/table-view-button/table-view-button.js';
 import './action-buttons/action-buttons';
 
 import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
@@ -60,6 +63,20 @@ export class BottomPanel extends LitElement {
       .per-page-label {
         font-weight: var(--font-weight-light);
       }
+
+      .initial-content {
+        --icon-button-height: 20px;
+        --icon-button-width: 20px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 30px;
+        row-gap: 30px;
+
+        .strong {
+          --icon-button-disabled-color: var(--color-black);
+          font-weight: var(--font-weight-bold);
+        }
+      }
     `
   ];
 
@@ -109,6 +126,7 @@ export class BottomPanel extends LitElement {
       perPage,
       orderBy
     });
+
     const isCurrentQuery = page === this.queryStore.state.page
       && perPage === this.queryStore.state.perPage
       && orderBy === this.queryStore.state.orderBy;
@@ -116,10 +134,6 @@ export class BottomPanel extends LitElement {
     if (isCurrentQuery) {
       this.tableData = tableData;
     }
-  }
-
-  #onOrderChange(columnId: TableColumn['id']) {
-    this.queryStore.actions.setOrder(columnId);
   }
 
   #onPageChange(event: CustomEvent<number>) {
@@ -133,9 +147,13 @@ export class BottomPanel extends LitElement {
     this.queryStore.actions.setPerPage(perPage);
   }
 
+  #onOrderChange(columnId: TableColumn['id']) {
+    this.queryStore.actions.setOrder(columnId);
+  }
+
   render() {
     if (!this.tableData) {
-      return null;
+      return this.renderInitial();
     }
 
     const { columns, rows, meta } = this.tableData;
@@ -164,25 +182,26 @@ export class BottomPanel extends LitElement {
     `;
   }
 
-  renderColumnHead(column: TableData['columns'][number]) {
-    if (!column.sortable) {
-      return html`
-        <th>${column.label}</th>
-      `;
+  renderInitial() {
+    const isLoaded = this.configStore.state.loadingStatus === 'success';
+    const hasSelectedColumns = this.queryStore.state.selectedColumnIds.length > 0;
+
+    if (!isLoaded || hasSelectedColumns) {
+      return null;
     }
 
-    const orderBy = this.queryStore.state.orderBy;
-    const sortOrder = orderBy?.columnId === column.id ? orderBy.order : undefined;
-
     return html`
-      <th>
-        <ens-table-sortable-column-head
-          sort-order=${ifDefined(sortOrder)}
-          @click=${() => this.#onOrderChange(column.id)}
-        >
-          ${column.label}
-        </ens-table-sortable-column-head>
-      </th>
+      <div class="initial-content">
+        <ens-table-view-button disabled class="strong"></ens-table-view-button>
+        <span class="strong">Select data from the options above to start</span>
+
+        <ens-delete-button disabled></ens-delete-button>
+        <span>Select to clear</span>
+
+        <ens-download-button disabled></ens-download-button>
+        <span>Select to download</span>
+      </div>
+      <ens-data-distiller-action-buttons inert></ens-data-distiller-action-buttons>
     `;
   }
 
@@ -224,6 +243,28 @@ export class BottomPanel extends LitElement {
           @ens-paginator-page-change=${this.#onPageChange}
         ></ens-paginator>
       </div>
+    `;
+  }
+
+  renderColumnHead(column: TableData['columns'][number]) {
+    if (!column.sortable) {
+      return html`
+        <th>${column.label}</th>
+      `;
+    }
+
+    const orderBy = this.queryStore.state.orderBy;
+    const sortOrder = orderBy?.columnId === column.id ? orderBy.order : undefined;
+
+    return html`
+      <th>
+        <ens-table-sortable-column-head
+          sort-order=${ifDefined(sortOrder)}
+          @click=${() => this.#onOrderChange(column.id)}
+        >
+          ${column.label}
+        </ens-table-sortable-column-head>
+      </th>
     `;
   }
 

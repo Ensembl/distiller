@@ -17,11 +17,17 @@ export class ActionButtons extends LitElement {
     css`
       :host {
         --buttons-column-color: var(--color-white);
+        --icon-button-height: 20px;
+        --icon-button-width: 20px;
         position: absolute;
         top: 0;
         right: 0;
         transform: translateX(calc(100% - 10px));
         z-index: 1;
+      }
+
+      :host([inert]) {
+        --icon-button-color: var(--color-grey);
       }
     `
   ];

@@ -32,7 +32,7 @@ export class ActionButtonsPopover extends LitElement {
 
       .title {
         font-weight: var(--font-weight-bold);
-        padding-top: 30px;
+        padding-top: 24px;
       }
     `
   ];

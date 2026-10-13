@@ -12,7 +12,7 @@ export const styles = css`
     flex-direction: column;
     row-gap: 30px;
     background-color: var(--buttons-column-color, transparent);
-    padding: 30px 15px 30px 0;
+    padding: 24px 15px 30px 0;
     border-radius: 5px;
 
     .active {

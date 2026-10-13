@@ -40,6 +40,10 @@ export const fetchRecords = async ({
   perPage: number;
   orderBy: OrderBy | null;
 }) => {
+  const orderByPayload = orderBy
+    ? { column_id: orderBy.columnId, order: orderBy.order.toUpperCase() }
+    : null;
+
   const response = await fetch(`${appConfig.apiBaseUrl}/dataset/${datasetId}/records`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,10 +51,7 @@ export const fetchRecords = async ({
       columns: columnIds,
       page,
       per_page: perPage,
-      order_by: orderBy && {
-        column_id: orderBy.columnId,
-        order: orderBy.order.toUpperCase()
-      }
+      order_by: orderByPayload
     })
   });
   if (!response.ok) {

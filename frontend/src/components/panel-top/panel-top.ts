@@ -259,40 +259,6 @@ export class TopPanel extends LitElement {
     return html`${this.renderSidebar()}${this.renderMain()}${this.renderToggle()}`;
   }
 
-  renderCollapsed() {
-    const filterGroups = this.configStore.state.filterGroups;
-    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
-    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
-    const label = this.isShowingColumnsList ? 'Attributes' : filterGroup?.label;
-
-    return html`
-      <div class="collapsed-content">
-        <span>
-          Data
-        </span>
-        <ens-text-button @click=${this.#togglePanelCollapsed}>
-          ${label}
-        </ens-text-button>
-      </div>
-    `;
-  }
-
-  renderToggle() {
-    const buttonLabel = this.isCollapsed
-      ? 'Expand the panel'
-      : 'Collapse the panel';
-
-    return html`
-      <div class="toggle-container">
-        <ens-expand-button
-          ?expanded=${!this.isCollapsed}
-          @click=${this.#togglePanelCollapsed}
-          label=${buttonLabel}
-        ></ens-expand-button>
-      </div>
-    `;
-  }
-
   renderSidebar() {
     if (!this.configStore) {
       return null;
@@ -340,8 +306,6 @@ export class TopPanel extends LitElement {
   renderMain() {
     const loadingStatus = this.configStore.state.loadingStatus;
     const filterGroups = this.configStore.state.filterGroups;
-    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
-    const selectedFilterId = this.configStore.state.selectedFilterId;
 
     if (!filterGroups.length && loadingStatus === 'loading') {
       return 'Loading...';
@@ -350,26 +314,16 @@ export class TopPanel extends LitElement {
       return null;
     }
 
-    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
-
     return html`
       <div class="main">
         <div class="filters">
           <span class="light">
             ${this.isShowingColumnsList ? 'Attributes' : 'Filters'}
           </span>
-          ${this.isShowingColumnsList ? this.renderColumnsSelection() : filterGroup?.filters.map(filter => {
-            const isSelected = filter.id === selectedFilterId;
-            return html `
-              <ens-text-button
-                @click=${() => this.onSelectedFilterChange(filter.id)}
-                class=${isSelected ? 'active' : nothing as unknown as string}
-                ?disabled=${isSelected}
-              >
-                ${filter.title}
-              </ens-text-button>          
-            `;
-          })}
+          ${this.isShowingColumnsList
+            ? this.renderColumnsSelection()
+            : this.renderFiltersList()
+          }
         </div>
         <div class="main-content">
           ${this.isShowingColumnsList
@@ -379,6 +333,27 @@ export class TopPanel extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  renderFiltersList() {
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+    const selectedFilterId = this.configStore.state.selectedFilterId;
+
+    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
+
+    return filterGroup?.filters.map(filter => {
+      const isSelected = filter.id === selectedFilterId;
+      return html `
+        <ens-text-button
+          @click=${() => this.onSelectedFilterChange(filter.id)}
+          class=${isSelected ? 'active' : nothing as unknown as string}
+          ?disabled=${isSelected}
+        >
+          ${filter.title}
+        </ens-text-button>          
+      `;
+    });
   }
 
   renderColumnsSelection() {
@@ -463,6 +438,40 @@ export class TopPanel extends LitElement {
     return html`
       <div class="columns-list">
         ${checkboxes}
+      </div>
+    `;
+  }
+
+  renderCollapsed() {
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
+    const label = this.isShowingColumnsList ? 'Attributes' : filterGroup?.label;
+
+    return html`
+      <div class="collapsed-content">
+        <span>
+          Data
+        </span>
+        <ens-text-button @click=${this.#togglePanelCollapsed}>
+          ${label}
+        </ens-text-button>
+      </div>
+    `;
+  }
+
+  renderToggle() {
+    const buttonLabel = this.isCollapsed
+      ? 'Expand the panel'
+      : 'Collapse the panel';
+
+    return html`
+      <div class="toggle-container">
+        <ens-expand-button
+          ?expanded=${!this.isCollapsed}
+          @click=${this.#togglePanelCollapsed}
+          label=${buttonLabel}
+        ></ens-expand-button>
       </div>
     `;
   }
