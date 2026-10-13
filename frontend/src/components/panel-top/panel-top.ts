@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import '@ensembl/ensembl-elements-common/components/text-button/text-button.js'
 import '@ensembl/ensembl-elements-common/components/checkbox/checkbox.js';
 import '@ensembl/ensembl-elements-common/components/icon-buttons/expand-button/expand-button.js';
+import '@ensembl/ensembl-elements-common/components/input/input.js';
 
 import '../circle-counter/circle-counter';
 import '../filters/fixed-list-filter';
@@ -121,6 +122,12 @@ export class TopPanel extends LitElement {
         align-items: center;
         column-gap: 0.5rem;
         margin-left: auto;
+        margin-right: var(--standard-gutter);
+      }
+
+      .columns-selection ens-input {
+        --input-width: 24ch;
+        margin-left: 1.4rem;
       }
 
       .light {
@@ -158,6 +165,9 @@ export class TopPanel extends LitElement {
 
   @state()
   isShowingColumnsList: boolean = false;
+
+  @state()
+  columnsSearchText = '';
 
   configStoreSubscription: ReturnType<ConfigStore['subscribe']> | null = null;
   queryStoreSubscription: ReturnType<QueryStore['subscribe']> | null = null;
@@ -226,6 +236,11 @@ export class TopPanel extends LitElement {
 
   #onDeselectAllColumns() {
     this.queryStore.actions.setSelectedColumnIds([]);
+  }
+
+  #onColumnsSearchChange(event: Event) {
+    const inputElement = event.currentTarget as HTMLInputElement;
+    this.columnsSearchText = inputElement.value;
   }
 
   onShowColumnsList() {
@@ -376,6 +391,13 @@ export class TopPanel extends LitElement {
         <ens-text-button @click=${this.#onDeselectAllColumns}>
           Deselect all
         </ens-text-button>
+        <ens-input
+          appearance="shaded"
+          placeholder="Find"
+          data-aria-label="Find attributes"
+          .value=${this.columnsSearchText}
+          @input=${this.#onColumnsSearchChange}
+        ></ens-input>
       </div>
     `;
   }
@@ -420,9 +442,11 @@ export class TopPanel extends LitElement {
 
   renderColumnsList() {
     const selectedColumnIds = this.queryStore.state.selectedColumnIds;
-    const allColumns = this.configStore.state.columns;
+    const searchText = this.columnsSearchText.toLowerCase();
+    const columns = this.configStore.state.columns
+      .filter(column => column.label.toLowerCase().includes(searchText));
 
-    const checkboxes = allColumns.map(column => {
+    const checkboxes = columns.map(column => {
       const isSelected = selectedColumnIds.includes(column.id);
 
       return html`
