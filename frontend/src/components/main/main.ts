@@ -17,6 +17,7 @@ export class TopPanel extends LitElement {
       :host {
         display: grid;
         height: 100%;
+        min-height: 0;
         grid-template-rows: auto 1fr;
         row-gap: 20px;
         padding: 10px 0 20px;

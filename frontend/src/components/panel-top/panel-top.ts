@@ -2,6 +2,7 @@ import { html, css, nothing, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import '@ensembl/ensembl-elements-common/components/text-button/text-button.js'
 import '@ensembl/ensembl-elements-common/components/checkbox/checkbox.js';
+import '@ensembl/ensembl-elements-common/components/icon-buttons/expand-button/expand-button.js';
 
 import '../filters/fixed-list-filter';
 import '../filters/match-string-filter';
@@ -13,6 +14,7 @@ import { panelStyles } from '../../styles/panel-styles';
 
 import type { ConfigStore } from '../../state/config-store';
 import type { QueryStore } from '../../state/query-store';
+import type { TableColumn } from '../../types/data-table';
 
 @customElement('ens-data-distiller-panel-top')
 export class TopPanel extends LitElement {
@@ -22,12 +24,39 @@ export class TopPanel extends LitElement {
     css`
       :host {
         --top-panel-padding-top: 24px;
+        position: relative;
         display: grid;
         grid-template-columns: [sidebar] auto [main] 1fr;
         min-height: 200px;
         height: 30%;
         height: 200px;
         border-radius: 5px;      
+      }
+
+      :host([collapsed]) {
+        display: flex;
+        align-items: center;
+        min-height: 60px;
+        height: 60px;
+      }
+
+      .collapsed-content {
+        display: flex;
+        align-items: center;
+        column-gap: 1rem;
+        padding-left: var(--standard-gutter);
+      }
+
+      .toggle-container {
+        position: absolute;
+        right: 0;
+        top: 0;
+        transform: translateX(80%);
+        background-color: var(--color-white);
+        padding-top: 14px;
+        padding-bottom: 14px;
+        padding-right: 14px;
+        border-radius: 5px;
       }
 
       .sidebar {
@@ -85,7 +114,7 @@ export class TopPanel extends LitElement {
       }
 
       .main-content {
-        padding-top: 24px;
+        padding-top: 1rem;
         height: 100%;
         min-height: 0;
       }
@@ -109,6 +138,9 @@ export class TopPanel extends LitElement {
 
   @property({ type: Object })
   queryStore!: QueryStore;
+
+  @property({ type: Boolean, attribute: 'collapsed', reflect: true })
+  isCollapsed = false;
 
   @state()
   isShowingColumnsList: boolean = false;
@@ -159,6 +191,20 @@ export class TopPanel extends LitElement {
     this.isShowingColumnsList = false;
   }
 
+  #togglePanelCollapsed() {
+    this.isCollapsed = !this.isCollapsed;
+  }
+
+  #onColumnSelectionChange(columnId: TableColumn['id']) {
+    const selectedColumnIds = this.queryStore.state.selectedColumnIds;
+    const isSelected = selectedColumnIds.includes(columnId);
+    const columnIds = isSelected
+      ? selectedColumnIds.filter(id => id !== columnId)
+      : [...selectedColumnIds, columnId];
+
+    this.queryStore.actions.setSelectedColumnIds(columnIds);
+  }
+
   onShowColumnsList() {
     this.isShowingColumnsList = true;
   }
@@ -168,7 +214,45 @@ export class TopPanel extends LitElement {
   }
 
   render() {
-    return html`${this.renderSidebar()}${this.renderMain()}`;
+    if (this.isCollapsed) {
+      return html`${this.renderCollapsed()}${this.renderToggle()}`;
+    }
+
+    return html`${this.renderSidebar()}${this.renderMain()}${this.renderToggle()}`;
+  }
+
+  renderCollapsed() {
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
+    const label = this.isShowingColumnsList ? 'Attributes' : filterGroup?.label;
+
+    return html`
+      <div class="collapsed-content">
+        <span>
+          Data
+        </span>
+        <ens-text-button @click=${this.#togglePanelCollapsed}>
+          ${label}
+        </ens-text-button>
+      </div>
+    `;
+  }
+
+  renderToggle() {
+    const buttonLabel = this.isCollapsed
+      ? 'Expand the panel'
+      : 'Collapse the panel';
+
+    return html`
+      <div class="toggle-container">
+        <ens-expand-button
+          ?expanded=${!this.isCollapsed}
+          @click=${this.#togglePanelCollapsed}
+          label=${buttonLabel}
+        ></ens-expand-button>
+      </div>
+    `;
   }
 
   renderSidebar() {
@@ -229,9 +313,9 @@ export class TopPanel extends LitElement {
       <div class="main">
         <div class="filters">
           <span class="light">
-            Filters
+            ${this.isShowingColumnsList ? 'Attributes' : 'Filters'}
           </span>
-          ${filterGroup?.filters.map(filter => {
+          ${this.isShowingColumnsList ? nothing : filterGroup?.filters.map(filter => {
             const isSelected = filter.id === selectedFilterId;
             return html `
               <ens-text-button
@@ -300,7 +384,10 @@ export class TopPanel extends LitElement {
       const isSelected = selectedColumnIds.includes(column.id);
 
       return html`
-        <ens-checkbox ?checked=${isSelected}>
+        <ens-checkbox
+          ?checked=${isSelected}
+          @change=${() => this.#onColumnSelectionChange(column.id)}
+        >
           ${column.label}
         </ens-checkbox>
 

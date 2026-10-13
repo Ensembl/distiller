@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ensembl/ensembl-elements-common": "0.0.5-dev",
+    "@ensembl/ensembl-elements-common": "0.0.6",
     "lit": "3.3.3"
   },
   "devDependencies": {
