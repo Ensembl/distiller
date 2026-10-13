@@ -110,6 +110,7 @@ export class TopPanel extends LitElement {
         display: flex;
         align-items: center;
         column-gap: 1.4rem;
+        min-height: calc(var(--top-panel-padding-top) + 30px);
         padding-top: var(--top-panel-padding-top);
       }
 
@@ -117,7 +118,7 @@ export class TopPanel extends LitElement {
         --text-button-disabled-color: var(--color-black);
       }
 
-      .columns-selection {
+      .selection-controls {
         display: flex;
         align-items: center;
         column-gap: 0.5rem;
@@ -125,7 +126,7 @@ export class TopPanel extends LitElement {
         margin-right: var(--standard-gutter);
       }
 
-      .columns-selection ens-input {
+      .selection-controls ens-input {
         --input-width: 24ch;
         margin-left: 1.4rem;
       }
@@ -167,7 +168,7 @@ export class TopPanel extends LitElement {
   isShowingColumnsList: boolean = false;
 
   @state()
-  columnsSearchText = '';
+  searchText = '';
 
   configStoreSubscription: ReturnType<ConfigStore['subscribe']> | null = null;
   queryStoreSubscription: ReturnType<QueryStore['subscribe']> | null = null;
@@ -202,9 +203,12 @@ export class TopPanel extends LitElement {
   #subscribeToQueryStore() {
     this.queryStoreSubscription = this.queryStore.subscribe((stateChange) => {
       const trackedKeys = [
-        'selectedColumnIds'
+        'selectedColumnIds',
+        'selectedFilters'
       ];
-      if (trackedKeys.includes(stateChange.key as string)) {
+      const isSelectedFilterChange = stateChange.target === this.queryStore.state.selectedFilters;
+
+      if (isSelectedFilterChange || trackedKeys.includes(stateChange.key as string)) {
         this.requestUpdate();
       }
     });
@@ -213,6 +217,7 @@ export class TopPanel extends LitElement {
   #onFilterGroupChange(id: string) {
     this.configStore.actions.setSelectedFilterGroupId(id);
     this.isShowingColumnsList = false;
+    this.searchText = '';
   }
 
   #togglePanelCollapsed() {
@@ -229,26 +234,70 @@ export class TopPanel extends LitElement {
     this.queryStore.actions.setSelectedColumnIds(columnIds);
   }
 
-  #onSelectAllColumns() {
-    const columnIds = this.configStore.state.columns.map(column => column.id);
-    this.queryStore.actions.setSelectedColumnIds(columnIds);
+  #onFixedListFilterChange(filterId: string, options: string[]) {
+    if (!options.length) {
+      this.queryStore.actions.removeFilter(filterId);
+      return;
+    }
+
+    this.queryStore.actions.setFilter({
+      type: 'fixed_list',
+      id: filterId,
+      options
+    });
   }
 
-  #onDeselectAllColumns() {
-    this.queryStore.actions.setSelectedColumnIds([]);
+  #onSelectAll() {
+    if (this.isShowingColumnsList) {
+      const columnIds = this.configStore.state.columns.map(column => column.id);
+      this.queryStore.actions.setSelectedColumnIds(columnIds);
+      return;
+    }
+
+    const filter = this.#getSelectedFilter();
+
+    if (filter?.type === 'fixed_list') {
+      const options = filter.options.map(option => option.value);
+      this.#onFixedListFilterChange(filter.id, options);
+    }
   }
 
-  #onColumnsSearchChange(event: Event) {
+  #onDeselectAll() {
+    if (this.isShowingColumnsList) {
+      this.queryStore.actions.setSelectedColumnIds([]);
+      return;
+    }
+
+    const filter = this.#getSelectedFilter();
+
+    if (filter) {
+      this.queryStore.actions.removeFilter(filter.id);
+    }
+  }
+
+  #getSelectedFilter() {
+    const filterGroups = this.configStore.state.filterGroups;
+    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
+    const selectedFilterId = this.configStore.state.selectedFilterId;
+
+    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
+
+    return filterGroup?.filters.find(filter => filter.id === selectedFilterId);
+  }
+
+  #onSearchChange(event: Event) {
     const inputElement = event.currentTarget as HTMLInputElement;
-    this.columnsSearchText = inputElement.value;
+    this.searchText = inputElement.value;
   }
 
   onShowColumnsList() {
     this.isShowingColumnsList = true;
+    this.searchText = '';
   }
 
   onSelectedFilterChange(id: string) {
     this.configStore.actions.setSelectedFilterId(id);
+    this.searchText = '';
   }
 
   render() {
@@ -320,10 +369,8 @@ export class TopPanel extends LitElement {
           <span class="light">
             ${this.isShowingColumnsList ? 'Attributes' : 'Filters'}
           </span>
-          ${this.isShowingColumnsList
-            ? this.renderColumnsSelection()
-            : this.renderFiltersList()
-          }
+          ${this.isShowingColumnsList ? nothing : this.renderFiltersList()}
+          ${this.renderSelectionControls()}
         </div>
         <div class="main-content">
           ${this.isShowingColumnsList
@@ -356,22 +403,29 @@ export class TopPanel extends LitElement {
     });
   }
 
-  renderColumnsSelection() {
+  renderSelectionControls() {
+    const hasCheckboxes = this.isShowingColumnsList
+      || this.#getSelectedFilter()?.type === 'fixed_list';
+
+    if (!hasCheckboxes) {
+      return nothing;
+    }
+
     return html`
-      <div class="columns-selection">
-        <ens-text-button @click=${this.#onSelectAllColumns}>
+      <div class="selection-controls">
+        <ens-text-button @click=${this.#onSelectAll}>
           Select all
         </ens-text-button>
         <span>|</span>
-        <ens-text-button @click=${this.#onDeselectAllColumns}>
+        <ens-text-button @click=${this.#onDeselectAll}>
           Deselect all
         </ens-text-button>
         <ens-input
           appearance="shaded"
           placeholder="Find"
-          data-aria-label="Find attributes"
-          .value=${this.columnsSearchText}
-          @input=${this.#onColumnsSearchChange}
+          data-aria-label="Find"
+          .value=${this.searchText}
+          @input=${this.#onSearchChange}
         ></ens-input>
       </div>
     `;
@@ -389,9 +443,17 @@ export class TopPanel extends LitElement {
     }
 
     if (filter.type === 'fixed_list') {
+      const selectedFilter = this.queryStore.state.selectedFilters[filter.id];
+      const selectedValues = selectedFilter?.type === 'fixed_list'
+        ? selectedFilter.options
+        : [];
+
       return html`
         <ens-data-distiller-fixed-list-filter
           .filterData=${filter}
+          .selectedValues=${selectedValues}
+          .searchText=${this.searchText}
+          @change=${(event: CustomEvent<string[]>) => this.#onFixedListFilterChange(filter.id, event.detail)}
         ></ens-data-distiller-fixed-list-filter>
       `;    
     } else if (filter.type === 'match') {
@@ -417,7 +479,7 @@ export class TopPanel extends LitElement {
 
   renderColumnsList() {
     const selectedColumnIds = this.queryStore.state.selectedColumnIds;
-    const searchText = this.columnsSearchText.toLowerCase();
+    const searchText = this.searchText.toLowerCase();
     const columns = this.configStore.state.columns
       .filter(column => column.label.toLowerCase().includes(searchText));
 
