@@ -59,24 +59,21 @@ def latest_genome_uuids_for_release_db(client: MongoClient, release_db: str) -> 
     return latest_genome_uuids
 
 
-def select_xref_url_pattern(resources: list[Document]) -> str | None:
+def select_resource(resources: list[Document]) -> Document:
+    """
+    A source can have several resources in identifiers.org. Pick the one to
+    use for its link pattern, home page and description:
+    an official resource that is not deprecated, otherwise any resource that
+    is not deprecated, otherwise the first one.
+    """
     for resource in resources:
-        if resource.get("official") is True:
-            return resource.get("urlPattern")
+        if resource.get("official") is True and resource.get("deprecated") is False:
+            return resource
 
     for resource in resources:
         if resource.get("deprecated") is False:
-            return resource.get("urlPattern")
+            return resource
 
-    return resources[0].get("urlPattern")
-
-
-def select_source_resource(resources: list[Document]) -> Document:
-    official_resources = [
-        resource for resource in resources if resource.get("official") is True
-    ]
-    if official_resources:
-        return official_resources[-1]
     return resources[0]
 
 
@@ -119,6 +116,12 @@ def load_xref_sources() -> dict[str, XrefSource]:
     xref_sources = {}
     for mapping in mapping_response.json()["mappings"]:
         source_id = mapping.get("ensembl_db_name", mapping["db_name"]).lower()
+
+        # miRBase is listed twice (miRBase and miRBase mature sequence).
+        # Keep the first entry so that the second does not replace it.
+        if source_id in xref_sources:
+            continue
+
         namespace_prefix = mapping.get("id_namespace")
         resources = namespaces.get(namespace_prefix, {}).get("resources") or []
 
@@ -126,14 +129,14 @@ def load_xref_sources() -> dict[str, XrefSource]:
             "namespace_prefix": namespace_prefix,
             "manual_xref_url": mapping.get("manual_xref_url"),
             "url_pattern": None,
-            "url": "",
+            "url": mapping.get("manual_source_url", ""),
             "description": ""
         }
         if resources:
-            source_resource = select_source_resource(resources)
-            xref_source["url_pattern"] = select_xref_url_pattern(resources)
-            xref_source["url"] = source_resource.get("resourceHomeUrl", "")
-            xref_source["description"] = source_resource.get("description", "")
+            resource = select_resource(resources)
+            xref_source["url_pattern"] = resource.get("urlPattern")
+            xref_source["url"] = resource.get("resourceHomeUrl", "")
+            xref_source["description"] = resource.get("description", "")
 
         xref_sources[source_id] = xref_source
 
