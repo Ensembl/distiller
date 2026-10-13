@@ -14,7 +14,8 @@ export class CircleCounter extends LitElement {
       background-color: var(--color-green);
       color: var(--color-white);
       font-weight: var(--font-weight-bold);
-      padding: 2px;
+      font-size: 12px;
+      padding: 2px 6px;
     }
 
     :host([dimmed]) {

@@ -73,6 +73,10 @@ export class TopPanel extends LitElement {
       return;
     }
     this.configStore.actions.setLoadingStatus('loading');
+
+    // reset the query store
+    this.queryStore.actions.reset();
+
     const datasetConfig = await fetchDatasetConfig({ datasetId });
 
     // check against a race condition (e.g. use switching datasets before response arrives)
@@ -84,9 +88,6 @@ export class TopPanel extends LitElement {
 
     this.configStore.actions.setFilterGroups(filter_groups);
     this.configStore.actions.setColumns(columns);
-
-    // reset the query store
-    this.queryStore.actions.reset();
 
     const defaultSelectedColumnIds = columns
       .filter(column => column.enable_by_default)
