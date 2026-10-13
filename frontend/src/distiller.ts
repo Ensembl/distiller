@@ -88,7 +88,9 @@ export class TopPanel extends LitElement {
     // reset the query store
     this.queryStore.actions.reset();
 
-    const defaultSelectedColumnIds = columns.map(column => column.id);
+    const defaultSelectedColumnIds = columns
+      .filter(column => column.enable_by_default)
+      .map(column => column.id);
     this.queryStore.actions.setSelectedColumnIds(defaultSelectedColumnIds);
 
     this.configStore.actions.setLoadingStatus('success');

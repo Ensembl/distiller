@@ -5,6 +5,11 @@ export type TableColumn = {
   enable_by_default: boolean;
 };
 
+export type OrderBy = {
+  columnId: TableColumn['id'];
+  order: 'asc' | 'desc';
+};
+
 export type StringData = {
   style: 'string';
   value: string;

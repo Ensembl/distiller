@@ -4,6 +4,7 @@ import '@ensembl/ensembl-elements-common/components/text-button/text-button.js'
 import '@ensembl/ensembl-elements-common/components/checkbox/checkbox.js';
 import '@ensembl/ensembl-elements-common/components/icon-buttons/expand-button/expand-button.js';
 
+import '../circle-counter/circle-counter';
 import '../filters/fixed-list-filter';
 import '../filters/match-string-filter';
 import '../filters/regex-filter';
@@ -86,6 +87,12 @@ export class TopPanel extends LitElement {
         font-weight: var(--font-weight-bold);
       }
 
+      .sidebar-navigation-item {
+        display: flex;
+        align-items: center;
+        column-gap: 0.5rem;
+      }
+
       .sidebar-navigation .active {
         --text-button-disabled-color: var(--color-black);
       }
@@ -107,6 +114,13 @@ export class TopPanel extends LitElement {
 
       .filters .active {
         --text-button-disabled-color: var(--color-black);
+      }
+
+      .columns-selection {
+        display: flex;
+        align-items: center;
+        column-gap: 0.5rem;
+        margin-left: auto;
       }
 
       .light {
@@ -205,6 +219,15 @@ export class TopPanel extends LitElement {
     this.queryStore.actions.setSelectedColumnIds(columnIds);
   }
 
+  #onSelectAllColumns() {
+    const columnIds = this.configStore.state.columns.map(column => column.id);
+    this.queryStore.actions.setSelectedColumnIds(columnIds);
+  }
+
+  #onDeselectAllColumns() {
+    this.queryStore.actions.setSelectedColumnIds([]);
+  }
+
   onShowColumnsList() {
     this.isShowingColumnsList = true;
   }
@@ -262,7 +285,7 @@ export class TopPanel extends LitElement {
 
     const filterGroups = this.configStore.state.filterGroups;
     const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
-
+    const selectedColumnsCount = this.queryStore.state.selectedColumnIds.length;
 
     return html`
       <div class="sidebar">
@@ -282,13 +305,18 @@ export class TopPanel extends LitElement {
               </ens-text-button>          
             `;
           })}
-          <ens-text-button
-            @click=${this.onShowColumnsList}
-            class=${this.isShowingColumnsList ? 'active' : nothing as unknown as string}
-            ?disabled=${this.isShowingColumnsList}
-          >
-            Attributes
-          </ens-text-button>
+          <div class="sidebar-navigation-item">
+            <ens-text-button
+              @click=${this.onShowColumnsList}
+              class=${this.isShowingColumnsList ? 'active' : nothing as unknown as string}
+              ?disabled=${this.isShowingColumnsList}
+            >
+              Attributes
+            </ens-text-button>
+            <ens-data-distiller-circle-counter ?dimmed=${selectedColumnsCount === 0}>
+              ${selectedColumnsCount}
+            </ens-data-distiller-circle-counter>
+          </div>
         </div>
       </div>    
     `;
@@ -315,7 +343,7 @@ export class TopPanel extends LitElement {
           <span class="light">
             ${this.isShowingColumnsList ? 'Attributes' : 'Filters'}
           </span>
-          ${this.isShowingColumnsList ? nothing : filterGroup?.filters.map(filter => {
+          ${this.isShowingColumnsList ? this.renderColumnsSelection() : filterGroup?.filters.map(filter => {
             const isSelected = filter.id === selectedFilterId;
             return html `
               <ens-text-button
@@ -334,6 +362,20 @@ export class TopPanel extends LitElement {
             : this.renderFilter()
           }
         </div>
+      </div>
+    `;
+  }
+
+  renderColumnsSelection() {
+    return html`
+      <div class="columns-selection">
+        <ens-text-button @click=${this.#onSelectAllColumns}>
+          Select all
+        </ens-text-button>
+        <span>|</span>
+        <ens-text-button @click=${this.#onDeselectAllColumns}>
+          Deselect all
+        </ens-text-button>
       </div>
     `;
   }

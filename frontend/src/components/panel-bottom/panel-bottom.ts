@@ -1,11 +1,13 @@
 import { html, css, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 
 import { fetchRecords } from '../../data-provider/data-provider';
 
 import '@ensembl/ensembl-elements-common/components/external-link/external-link.js';
 import '@ensembl/ensembl-elements-common/components/select/select.js';
 import '@ensembl/ensembl-elements-common/components/paginator/paginator.js';
+import '@ensembl/ensembl-elements-common/components/table/sortable-column-header.js';
 import './action-buttons/action-buttons';
 
 import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
@@ -14,7 +16,7 @@ import { panelStyles } from '../../styles/panel-styles';
 
 import type { ConfigStore } from '../../state/config-store';
 import type { QueryStore } from '../../state/query-store';
-import type { TableCell, TableData } from '../../types/data-table';
+import type { TableCell, TableColumn, TableData } from '../../types/data-table';
 
 @customElement('ens-data-distiller-panel-bottom')
 export class BottomPanel extends LitElement {
@@ -84,7 +86,7 @@ export class BottomPanel extends LitElement {
 
   #subscribeToQueryStore() {
     this.queryStoreSubscription = this.queryStore.subscribe((stateChange) => {
-      const trackedKeys = ['selectedColumnIds', 'page', 'perPage'];
+      const trackedKeys = ['selectedColumnIds', 'page', 'perPage', 'orderBy'];
       if (trackedKeys.includes(stateChange.key as string)) {
         this.#fetchRecords();
       }
@@ -93,7 +95,7 @@ export class BottomPanel extends LitElement {
 
   async #fetchRecords() {
     const datasetId = this.configStore.state.selectedDatasetId;
-    const { selectedColumnIds, page, perPage } = this.queryStore.state;
+    const { selectedColumnIds, page, perPage, orderBy } = this.queryStore.state;
 
     if (!datasetId || !selectedColumnIds.length) {
       this.tableData = null;
@@ -104,14 +106,20 @@ export class BottomPanel extends LitElement {
       datasetId,
       columnIds: selectedColumnIds,
       page,
-      perPage
+      perPage,
+      orderBy
     });
-    const isCurrentPage = page === this.queryStore.state.page
-      && perPage === this.queryStore.state.perPage;
+    const isCurrentQuery = page === this.queryStore.state.page
+      && perPage === this.queryStore.state.perPage
+      && orderBy === this.queryStore.state.orderBy;
 
-    if (isCurrentPage) {
+    if (isCurrentQuery) {
       this.tableData = tableData;
     }
+  }
+
+  #onOrderChange(columnId: TableColumn['id']) {
+    this.queryStore.actions.setOrder(columnId);
   }
 
   #onPageChange(event: CustomEvent<number>) {
@@ -138,9 +146,7 @@ export class BottomPanel extends LitElement {
         <table class="ens-table">
           <thead class="sticky-table-head">
             <tr>
-              ${columns.map(column => html`
-                <th>${column.label}</th>
-              `)}
+              ${columns.map(column => this.renderColumnHead(column))}
             </tr>
           </thead>
           <tbody>
@@ -155,6 +161,28 @@ export class BottomPanel extends LitElement {
         </table>
       </div>
       <ens-data-distiller-action-buttons></ens-data-distiller-action-buttons>
+    `;
+  }
+
+  renderColumnHead(column: TableData['columns'][number]) {
+    if (!column.sortable) {
+      return html`
+        <th>${column.label}</th>
+      `;
+    }
+
+    const orderBy = this.queryStore.state.orderBy;
+    const sortOrder = orderBy?.columnId === column.id ? orderBy.order : undefined;
+
+    return html`
+      <th>
+        <ens-table-sortable-column-head
+          sort-order=${ifDefined(sortOrder)}
+          @click=${() => this.#onOrderChange(column.id)}
+        >
+          ${column.label}
+        </ens-table-sortable-column-head>
+      </th>
     `;
   }
 

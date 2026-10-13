@@ -1,7 +1,7 @@
 import appConfig from '../configs/app-config';
 
 import type { Dataset, DatasetConfig } from '../types/dataset';
-import type { TableColumn, TableData } from '../types/data-table';
+import type { OrderBy, TableColumn, TableData } from '../types/data-table';
 
 export const fetchDatasets = async () => {
   const response = await fetch(`${appConfig.apiBaseUrl}/datasets`);
@@ -31,12 +31,14 @@ export const fetchRecords = async ({
   datasetId,
   columnIds,
   page,
-  perPage
+  perPage,
+  orderBy
 }: {
   datasetId: string;
   columnIds: TableColumn['id'][];
   page: number;
   perPage: number;
+  orderBy: OrderBy | null;
 }) => {
   const response = await fetch(`${appConfig.apiBaseUrl}/dataset/${datasetId}/records`, {
     method: 'POST',
@@ -44,7 +46,11 @@ export const fetchRecords = async ({
     body: JSON.stringify({
       columns: columnIds,
       page,
-      per_page: perPage
+      per_page: perPage,
+      order_by: orderBy && {
+        column_id: orderBy.columnId,
+        order: orderBy.order.toUpperCase()
+      }
     })
   });
   if (!response.ok) {
