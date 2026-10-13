@@ -3,58 +3,74 @@
         {
             "id":"species_scientific_name",
             "target_column":"slice_region_assembly_organism_scientific_name",
-            "label":"Species Scientific Name",
-            "title":"Species Scientific Name",
-            "example":"Mus musculus",
-            "type" : "user_list",
+            "label":"Species",
+            "title":"Species",
+            "type" : "fixed_list",
+            "filter_labels":"slice_region_assembly_organism_scientific_name"
+        },
+        {
+            "id":"genome",
+            "target_column":"genome_uuid",
+            "label":"Genome",
+            "title":"Genome",
+            "type" : "fixed_list",
+            "filter_labels":"concat(slice_region_assembly_organism_scientific_name, ' - ', slice_region_assembly_accession_id)"
         },
         {
             "id":"gene_symbol",
             "target_column":"symbol",
-            "label":"Gene Symbol",
-            "title":"Gene Symbol",
+            "label":"Gene symbol",
+            "title":"Gene symbol",
             "example":"PPP2R2A",
-            "type" : "user_list",
-            "filter_labels":"lower(class)"
+            "type" : "match"
         },
         {
             "id":"stable_id",
             "target_column":"stable_id",
-            "label":"Stable Id",
-            "title":"Gene Stable Id",
+            "label":"Stable ID",
+            "title":"Stable ID",
             "example":"ENSBTAG00070000112.1",
             "type":"match"
         },
         {
             "id":"gene_type",
-            "target_column":"type",
-            "label":"Gene Type",
-            "title":"Gene Type",
+            "target_column":"so_term",
+            "label":"Gene type",
+            "title":"Gene type",
             "type" : "fixed_list",
-            "filter_labels":"type"
+            "filter_labels":"so_term"
         },
         {
             "id":"taxon",
             "target_column":"slice_region_assembly_organism_species_taxon_id",
-            "label":"Taxon",
-            "title":"Taxon",
+            "label":"Taxon ID",
+            "title":"Taxon ID",
             "type":"match",
             "example":"9606"
         },
         {
             "id":"topology",
             "target_column":"slice_region_topology",
-            "label":"Region Topology",
-            "title":"Region Topology",
+            "label":"Region topology",
+            "title":"Region topology",
             "type":"fixed_list",
             "filter_labels":"slice_region_topology"
         },
         {
             "id":"region_name",
             "target_column":"slice_region_name",
-            "label":"Region names",
-            "title":"Region names",
-            "type":"user_list",
+            "label":"Region name",
+            "title":"Region name",
+            "type":"match",
+            "example":"X"
+        },
+        {
+            "id":"strand",
+            "target_column":"slice_strand_code",
+            "label":"Strand",
+            "title":"Strand",
+            "type":"fixed_list",
+            "filter_labels":"slice_strand_code"
         },
         {
             "id":"location",
@@ -94,30 +110,25 @@
             "include_remaining_columns" : true,
             "filter_groups" : [
                 {
-                    "group_id": "gene",
-                    "group_label": "Genes",
-                    "filters":[
-                        { "id" : "gene_symbol" },
-                        { "id" : "stable_id" },
-                        { "id" : "gene_type"}
-                    ]
-                },
-                {
-                    "group_id":"species",
-                    "group_label":"Species",
+                    "group_id": "genomes",
+                    "group_label": "Genomes",
                     "filters":[
                         { "id": "species_scientific_name" },
+                        { "id": "genome" },
                         { "id": "taxon" }
                     ]
                 },
                 {
-                    "group_id":"genomics",
-                    "group_label":"Genomics",
+                    "group_id": "filters",
+                    "group_label": "Filters",
                     "filters":[
-                        {"id": "topology"},
-                        {"id":"region_name"},
-                        {"id":"location"}
-                        
+                        { "id": "gene_type" },
+                        { "id": "gene_symbol" },
+                        { "id": "stable_id" },
+                        { "id": "region_name" },
+                        { "id": "topology" },
+                        { "id": "location" },
+                        { "id": "strand" }
                     ]
                 }
             ],
