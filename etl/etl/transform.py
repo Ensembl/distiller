@@ -3,7 +3,7 @@ from pathlib import Path
 
 import duckdb
 
-from etl.models import Dataset
+from etl.models import DataSource
 
 logger = logging.getLogger(__name__)
 
@@ -12,18 +12,18 @@ class Transform:
     """Performs first pass transformation. Takes an input parquet
     or CSV file and any additional columns wanted. Will then
     write the final files to the output path. Paths to parquet
-    files are added to the given dataset variable.
+    files are added to the given data source variable.
 
     Key used is 'parquet'.
 
     Attributes:
-        datasets (list[Dataset]): List of dataset definitions
+        data_source (list[DatSource]): List of data source definitions
         release_path (Path): Path to output release directory
         target (str): Name of the view to be created in DuckDB
     """
 
     def __init__(
-        self, datasets: list[Dataset], release_path: Path, target: str = "dataset"
+        self, datasets: list[DataSource], release_path: Path, target: str = "datasource"
     ):
         self.datasets = datasets
         self.release_path = release_path
@@ -34,12 +34,12 @@ class Transform:
             parquet_path = self.transform_dataset(dataset)
             dataset.parquet_path = parquet_path
 
-    def transform_dataset(self, dataset: Dataset) -> Path:
+    def transform_dataset(self, data_source: DataSource) -> Path:
         with duckdb.connect() as conn:
             # Set columns to all first
             dataset_cols = ["*"]
             # add additional columns as needed
-            for column_definition in dataset.create_columns:
+            for column_definition in data_source.create_columns:
                 logger.debug(
                     f"Creating new column from '{column_definition.command}' as '{column_definition.name}'"  # noqa: E501
                 )
@@ -47,17 +47,17 @@ class Transform:
                     f"{column_definition.command} AS {column_definition.name}"
                 )
 
-            if ".parquet" in dataset.path:
+            if ".parquet" in data_source.path:
                 sql_view = f"""
     CREATE VIEW {self.target} AS
     SELECT {", ".join(dataset_cols)}
-    FROM read_parquet('{dataset.path}')
+    FROM read_parquet('{data_source.path}')
             """
-            elif ".csv" in dataset.path:
+            elif ".csv" in data_source.path:
                 sql_view = f"""
     CREATE VIEW {self.target} AS
     SELECT {", ".join(dataset_cols)}
-    FROM read_csv('{dataset.path}', header=true, all_varchar=true, delim =',', quote='"', sample_size = -1)
+    FROM read_csv('{data_source.path}', header=true, all_varchar=true, delim =',', quote='"', sample_size = -1)
     """  # noqa: E501
             else:
                 raise ValueError(
@@ -68,11 +68,11 @@ class Transform:
             print(sql_view)
             print("-----------")
             conn.execute(sql_view)
-            return self.write_output(dataset, conn)
+            return self.write_output(data_source, conn)
 
-    def write_output(self, dataset: Dataset, conn) -> Path:
+    def write_output(self, data_source: DataSource, conn) -> Path:
         # output as parquet
-        name = f"{dataset.name}.parquet"
+        name = f"{data_source.name}.parquet"
         save_path = self.release_path / name
         output_sql = (
             f"COPY {self.target} TO '{save_path}' (FORMAT parquet, COMPRESSION zstd)"

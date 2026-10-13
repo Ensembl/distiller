@@ -26,7 +26,7 @@ def fetch_config(dataset_id):
 
     conn = get_db_connection(db_path)
 
-    result = conn.sql("SELECT json_config FROM dataset_config WHERE view_id = 1")
+    result = conn.sql("SELECT json_config FROM dataset_config")
 
     payload = json.loads(result.fetchone()[0])
 

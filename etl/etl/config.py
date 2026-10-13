@@ -13,11 +13,11 @@ class ConfigError(Exception):
 
 
 def _mark_filter_used(
-    filter: dict[str, Any], view: dict[str, Any], used_filters: dict[str, bool]
+    filter: dict[str, Any], dataset: dict[str, Any], used_filters: dict[str, bool]
 ) -> None:
     filter_id = filter["filter_id"]
     if filter_id not in used_filters:
-        raise ConfigError(f"Unknown filter: {filter_id} found for {view['name']}")
+        raise ConfigError(f"Unknown filter: {filter_id} found for {dataset['name']}")
     else:
         used_filters[filter_id] = True
 
@@ -41,26 +41,26 @@ def validate_config(config: dict[str, Any], schema: dict[str, Any]) -> None:
         used_filters[f["id"]] = False
 
     # Check filter names (walking into groups)
-    for view in config["views"]:
-        group_ids: set[str] = set()
-        for entry in view["filters"]:
-            if "group_id" in entry:
-                # Filter group
-                gid = entry["group_id"]
-                if gid in group_ids:
-                    raise ConfigError(
-                        f"Duplicate group_id '{gid}' in view '{view['name']}'"
-                    )
-                group_ids.add(gid)
-                for filter in entry["filters"]:
-                    _mark_filter_used(filter, view, used_filters)
-            else:
-                _mark_filter_used(entry, view, used_filters)
+    dataset = config["dataset"]
+    group_ids: set[str] = set()
+    for entry in dataset["filters"]:
+        if "group_id" in entry:
+            # Filter group
+            gid = entry["group_id"]
+            if gid in group_ids:
+                raise ConfigError(
+                    f"Duplicate group_id '{gid}' in view '{dataset['name']}'"
+                )
+            group_ids.add(gid)
+            for filter in entry["filters"]:
+                _mark_filter_used(filter, dataset, used_filters)
+        else:
+            _mark_filter_used(entry, dataset, used_filters)
 
     # check for unused filter
     for f, used in used_filters.items():
         if not used:
-            raise ConfigError(f"Filter {f} is not used by any of the views!")
+            raise ConfigError(f"Filter {f} is not used by dataset!")
 
 
 def validate_dataset(datasets: list[dict[str, Any]], schema: dict[str, Any]) -> None:
