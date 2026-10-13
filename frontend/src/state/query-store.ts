@@ -1,6 +1,6 @@
 import { createStore } from './reactive-store';
 
-import type { TableColumn } from "../types/data-table";
+import type { OrderBy, TableColumn } from "../types/data-table";
 
 type SelectedFixedListFilter = {
   type: 'fixed_list';
@@ -41,7 +41,7 @@ type QueryState = {
   selectedColumnIds: TableColumn['id'][];
   page: number;
   perPage: number;
-  sortBy: string | null;
+  orderBy: OrderBy | null;
 }
 
 const initialState: QueryState = {
@@ -49,7 +49,7 @@ const initialState: QueryState = {
   selectedColumnIds: [],
   page: 1,
   perPage: 100,
-  sortBy: null
+  orderBy: null
 };
 
 
@@ -79,6 +79,18 @@ export const createQueryStore = () => {
     setPerPage(perPage: number) {
       store.state.perPage = perPage;
       store.state.page = 1;
+    },
+
+    setOrder(columnId: TableColumn['id']) {
+      const currentOrder = store.state.orderBy;
+
+      if (currentOrder?.columnId !== columnId) {
+        store.state.orderBy = { columnId, order: 'asc' };
+      } else if (currentOrder.order === 'asc') {
+        store.state.orderBy = { columnId, order: 'desc' };
+      } else {
+        store.state.orderBy = null;
+      }
     },
 
     reset() {
