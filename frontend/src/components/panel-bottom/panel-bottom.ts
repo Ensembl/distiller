@@ -111,6 +111,7 @@ export class BottomPanel extends LitElement {
   }
 
   async #fetchRecords() {
+    const apiBaseUrl = this.configStore.state.apiBaseUrl;
     const datasetId = this.configStore.state.selectedDatasetId;
     const { selectedColumnIds, page, perPage, orderBy } = this.queryStore.state;
 
@@ -120,6 +121,7 @@ export class BottomPanel extends LitElement {
     }
 
     const tableData = await fetchRecords({
+      apiBaseUrl,
       datasetId,
       columnIds: selectedColumnIds,
       page,

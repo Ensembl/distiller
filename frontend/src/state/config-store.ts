@@ -6,6 +6,7 @@ import type { TableColumn } from '../types/data-table';
 import type { LoadingStatus } from '../types/loading-status';
 
 export type ConfigState = {
+  apiBaseUrl: string;
   loadingStatus: LoadingStatus;
   datasets: Dataset[];
   selectedDatasetId: string | null;
@@ -16,6 +17,7 @@ export type ConfigState = {
 };
 
 const initialState: ConfigState = {
+  apiBaseUrl: '',
   loadingStatus: 'initial',
   datasets: [],
   selectedDatasetId: null,
@@ -31,6 +33,10 @@ export const createConfigStore = () => {
   const store = createStore(stateClone);
 
   const actions = {
+    setApiBaseUrl(apiBaseUrl: string) {
+      store.state.apiBaseUrl = apiBaseUrl;
+    },
+
     setLoadingStatus(loadingStatus: LoadingStatus) {
       store.state.loadingStatus = loadingStatus;
     },

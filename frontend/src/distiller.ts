@@ -1,5 +1,5 @@
 import { html, css, LitElement } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 
 import { fetchDatasets, fetchDatasetConfig } from './data-provider/data-provider';
 
@@ -12,7 +12,7 @@ import './components/main/main';
 import resetStyles from '@ensembl/ensembl-elements-common/styles/constructable-stylesheets/resets.js';
 
 @customElement('ens-data-distiller')
-export class TopPanel extends LitElement {
+export class DataDistiller extends LitElement {
 
   static styles = [
     resetStyles,
@@ -25,6 +25,9 @@ export class TopPanel extends LitElement {
     `
   ];
 
+  @property({ attribute: 'api-base-url' })
+  apiBaseUrl = '';
+
   configStore: ConfigStore = createConfigStore()
   queryStore: QueryStore = createQueryStore()
 
@@ -32,6 +35,7 @@ export class TopPanel extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.configStore.actions.setApiBaseUrl(this.apiBaseUrl);
     this.#fetchDatasets();
     this.#setListeners();
   }
@@ -57,7 +61,9 @@ export class TopPanel extends LitElement {
 
   async #fetchDatasets() {
     this.configStore.actions.setLoadingStatus('loading');
-    const datasets = await fetchDatasets();
+    const datasets = await fetchDatasets({
+      apiBaseUrl: this.apiBaseUrl
+    });
     const firstDataset = datasets[0];
     const firstDatasetId = firstDataset.id;
     this.configStore.actions.setDatasets(datasets);
@@ -77,7 +83,10 @@ export class TopPanel extends LitElement {
     // reset the query store
     this.queryStore.actions.reset();
 
-    const datasetConfig = await fetchDatasetConfig({ datasetId });
+    const datasetConfig = await fetchDatasetConfig({
+      apiBaseUrl: this.apiBaseUrl,
+      datasetId
+    });
 
     // check against a race condition (e.g. use switching datasets before response arrives)
     if (datasetId !== this.configStore.state.selectedDatasetId) {
@@ -107,5 +116,11 @@ export class TopPanel extends LitElement {
         .queryStore=${this.queryStore}
       ></ens-data-distiller-main>
     `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'ens-data-distiller': DataDistiller;
   }
 }

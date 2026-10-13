@@ -15,4 +15,5 @@ __pycache__/
 # Frontend
 node_modules
 dist
+.env
 _site
