@@ -1,86 +1,127 @@
+# include template to setup review app
+include:
+  - project: 'ensembl-web/ensembl-gitlab-ci-templates'
+    ref: 'main'
+    file:
+      - 'branch-rules/.branch-rules-template.yaml'
+      - 'deploy/.deploy-main-template.yaml'
+      - 'deploy/.deploy-review-template.yaml'
+      - 'review/.setup-BE-review-template.yaml'
+
 stages:
+  - setup
   - build
+  - deploy-review
   - deploy-test
+  - deploy-stage
   - deploy-prod
 
 variables:
-  DOCKER_TLS_CERTDIR: ""
   DOCKER_IMAGE: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
+  DOCKER_TLS_CERTDIR: ""
+  NFS_SERVER: ${HL_NFS_SERVER_CODON}
+  NFS_PATH: ${HL_NFS_PATH_CODON}
+  BE_MANIFEST_DIR: "ensembl-distiller"
 
-.branch-rules-main:
-  rules:
-    - if: '$CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH == "main"'
-
-.branch-rules-main-manual:
-  rules:
-    - if: '$CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH == "main"'
-      when: manual
-
-.docker-build:
+#Build docker image
+Docker:
+  stage: build
   image: docker
   services:
     - docker:dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - docker build -t ${DOCKER_IMAGE} --no-cache .
+    - docker build -t ${DOCKER_IMAGE} --no-cache -f Dockerfile .
     - docker push ${DOCKER_IMAGE}
     - docker rmi ${DOCKER_IMAGE}
     - docker logout $CI_REGISTRY
 
-.deploy:
-  image: dockerhub.ebi.ac.uk/ensembl-web/deploy-tools:latest
-  before_script:
-    - kubectl config use-context ${AGENT}
-    - kubectl config set-context --current --namespace=${NS}
-  script:
-    - git clone --depth 1 --branch k8s123-migration https://gitlab.ebi.ac.uk/ensembl-web/ensembl-k8s-manifests.git
-    - cd ensembl-k8s-manifests/ensembl-distiller
-    - sed -i "s#<HOST>#${HOST}.ensembl.org#g" ingress.yaml
-    - kustomize edit set image DOCKER_IMAGE=${DOCKER_IMAGE}
-    - kubectl apply -k .
-    - kubectl rollout status deployment/distiller-backend
+# Jobs extended from templates to setup and deploy review environment, dev, staging, prod and fallback environments
+# Create a review deployment (runs once per new branch)
+Setup Review:
+  extends: .setup-review-newk8s
+  stage: setup
+  environment:
+    name: development
+  variables:
+    GIT_STRATEGY: none
+    AGENT: ${DEV_AGENT}
+    DEV_NS: ${DEV_NS}
+    REVIEW_NS: ${CI_COMMIT_REF_SLUG}
+    BE_INGRESS: ""
 
-.deploy-main:
-  extends:
-    - .deploy
-    - .branch-rules-main
+# Deploy review environment
+Deploy Review:
+  extends: .deploy-review
+  stage: deploy-review
+  variables:
+    AGENT: ${DEV_AGENT}
+    REVIEW_NS: ${CI_COMMIT_REF_SLUG}
+    BE_MANIFEST_DIR: "ensembl-distiller"
+    REVIEW_CONFIGMAP_FILE: "ensembl-distiller.config"
+    REVIEW_SECRET_FILE: ""
+    BACKEND_APP: "ensembl-distiller"
+  environment:
+    name: development
+    url: https://${REVIEW_NS}.review.ensembl.org
+    on_stop: Stop Review
 
-Docker:
-  stage: build
-  extends:
-    - .docker-build
-    - .branch-rules-main
+Stop Review:
+  extends: .stop-review
+  stage: deploy-review
+  variables:
+    # Must match deploy-review; its job variables are not inherited here.
+    AGENT: ${DEV_AGENT}
+    REVIEW_NS: ${CI_COMMIT_REF_SLUG}
+    GIT_STRATEGY: none
+  rules:
+    - if: $CI_DEPLOY_FREEZE == null && $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "dev"
+      when: manual
+      allow_failure: true
+  environment:
+    name: development
+    action: stop
 
+# Deploy Dev
 Dev:
   stage: deploy-test
   extends: .deploy-main
   environment:
     name: development
-    url: https://dev-2020.ensembl.org/api/distiller
   variables:
     AGENT: ${DEV_AGENT}
     NS: ${DEV_NS}
-    HOST: dev-2020
 
+# Deploy Stage
 Staging:
-  stage: deploy-test
+  stage: deploy-stage
   extends: .deploy-main
   environment:
     name: staging
   variables:
     AGENT: ${STAGING_AGENT}
     NS: ${STAGING_NS}
-    HOST: staging-2020
 
+#Deploy prod & fallback environment
 Prod:
   stage: deploy-prod
-  extends:
-    - .deploy
-    - .branch-rules-main-manual
+  extends: .deploy-main
   environment:
     name: production
+  when: manual
   variables:
     AGENT: ${PROD_AGENT}
     NS: ${PROD_NS}
-    HOST: beta
+
+Fallback:
+  stage: deploy-prod
+  extends: .deploy-main
+  environment:
+    name: fallback
+  when: manual
+  variables:
+    AGENT: ${FALLBACK_AGENT}
+    NS: ${FALLBACK_NS}
+    NFS_SERVER: ${HX_NFS_SERVER_CODON}
+    NFS_PATH: ${HX_NFS_PATH_CODON}
