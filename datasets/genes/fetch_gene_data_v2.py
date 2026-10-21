@@ -40,6 +40,9 @@ def get_mongo_client() -> MongoClient:
 def is_latest_genome_uuid(genome_uuid: str) -> bool:
     url = f"{METADATA_API_BASE_URL}/genome/{genome_uuid}/explain"
     response = requests.get(url, timeout=30)
+    if response.status_code == 404:
+        return False
+
     response.raise_for_status()
     genome_details = response.json()
     return genome_details.get("latest_genome") is None
