@@ -9,7 +9,7 @@ export const checkOutsideClick = ({
   const scopeNode = event.composedPath()
     .find(node => (node as HTMLElement)
     .getRootNode?.() === scope) as HTMLElement | undefined;
-  
+
   // A semi-magical incantation, based on how the compareDocumentPosition method works
   // (compareDocumentPosition returns an integer used as bitmask)
   const isClickInside = Boolean(

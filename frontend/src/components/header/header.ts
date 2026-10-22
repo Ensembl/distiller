@@ -94,7 +94,7 @@ export class TopPanel extends LitElement {
                   value=${dataset.id}
                 >
                   ${dataset.label}
-                </option>  
+                </option>
               `
             })}
           </select>

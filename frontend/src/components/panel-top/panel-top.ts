@@ -398,7 +398,7 @@ export class TopPanel extends LitElement {
           ?disabled=${isSelected}
         >
           ${filter.title}
-        </ens-text-button>          
+        </ens-text-button>
       `;
     });
   }
@@ -432,12 +432,7 @@ export class TopPanel extends LitElement {
   }
 
   renderFilter() {
-    const filterGroups = this.configStore.state.filterGroups;
-    const selectedFilterGroupId = this.configStore.state.selectedFilterGroupId;
-    const selectedFilterId = this.configStore.state.selectedFilterId;
-
-    const filterGroup = filterGroups.find(group => group.id === selectedFilterGroupId);
-    const filter = filterGroup?.filters.find(filter => filter.id === selectedFilterId);
+    const filter = this.#getSelectedFilter();
     if (!filter) {
       return;
     }
