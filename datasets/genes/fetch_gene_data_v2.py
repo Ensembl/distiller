@@ -268,14 +268,12 @@ def parse_gene_row(gene: Document, region_details: RegionDetails) -> list[Any]:
     name_metadata = gene.get("metadata", {}).get("name", {})
     name_source_id = name_metadata.get("source", {}).get("id") or ""
     name_source = load_xref_sources().get(name_source_id.lower(), {})
-    alternative_symbols = ", ".join(
-        f"'{symbol}'" for symbol in gene.get("alternative_symbols") or []
-    )
+    alternative_symbols = ",".join(gene.get("alternative_symbols") or [])
 
     return [
         gene.get("symbol", ""), # symbol
         gene.get("name", ""), # name
-        f"[{alternative_symbols}]", # alternative_symbols
+        alternative_symbols, # alternative_symbols
         gene.get("stable_id", ""), # stable_id
         gene.get("version", ""), # version
         gene.get("unversioned_stable_id", ""), # unversioned_stable_id
