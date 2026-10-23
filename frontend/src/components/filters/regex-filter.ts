@@ -14,7 +14,7 @@ export class RegexFilter extends LitElement {
     }
 
     ens-input::part(input-wrapper) {
-      width: 60ch;
+      width: 40ch;
     }
   `;
 

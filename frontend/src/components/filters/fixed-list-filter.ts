@@ -12,34 +12,35 @@ export class FixedListFilter extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
-      column-gap: 1rem;
+      align-content: flex-start;
+      row-gap: 0.5rem;
+      column-gap: 2rem;
       flex-wrap: wrap;
       height: 100%;
+      overflow-x: auto;
     }
   `;
 
   @property({ type: Object })
   filterData: FixedListFilterType | null = null;
 
-  // TODO: selected values
+  @property({ type: Array })
+  selectedValues: string[] = [];
 
-  #values: string[] = [];
+  @property({ type: String })
+  searchText = '';
 
   onChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const value = target.dataset.value as string;
     const isChecked = target.checked;
 
-    if (isChecked) {
-      // add to internal values list
-      this.#values.push(value);
-    } else {
-      // remove from internal values list
-      this.#values = this.#values.filter(storedValue => value !== storedValue);
-    }
+    const selectedValues = isChecked
+      ? [...this.selectedValues, value]
+      : this.selectedValues.filter(selectedValue => value !== selectedValue);
 
     const outgoingEvent = new CustomEvent('change', {
-      detail: [...this.#values]
+      detail: selectedValues
     });
     this.dispatchEvent(outgoingEvent);
   }
@@ -49,10 +50,15 @@ export class FixedListFilter extends LitElement {
       return null;
     }
 
-    const checkboxes = this.filterData.options.map((option) => {
+    const searchText = this.searchText.toLowerCase();
+    const options = this.filterData.options
+      .filter(option => option.label.toLowerCase().includes(searchText));
+
+    const checkboxes = options.map((option) => {
       return html`
         <ens-checkbox
           data-value=${option.value}
+          ?checked=${this.selectedValues.includes(option.value)}
           @change=${this.onChange}
         >
           ${option.label}

@@ -1,26 +1,37 @@
 {
-  "name": "data-distiller",
+  "name": "@ensembl/ensembl-data-distiller",
   "version": "0.0.1",
   "description": "Ensembl's interface for querying and tabular display of various data",
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {
+    ".": "./src/distiller.ts"
+  },
   "scripts": {
     "dev": "vite ./playground",
+    "build": "node --experimental-strip-types ./scripts/build.ts",
+    "publish-lib": "node --env-file=.env --experimental-strip-types ./scripts/publish.ts",
     "storybook": "storybook dev -p 9001 -c .storybook",
     "check-types": "tsc --noEmit",
     "test-watch:node": "vitest",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@ensembl/ensembl-elements-common": "0.0.5-dev",
-    "lit": "3.3.3"
+  "peerDependencies": {
+    "@ensembl/ensembl-elements-common": ">=0.0.6",
+    "lit": ">=3.3.1"
+  },
+  "publishConfig": {
+    "@ensembl:registry": "https://gitlab.ebi.ac.uk/api/v4/projects/3500/packages/npm/"
   },
   "devDependencies": {
+    "@ensembl/ensembl-elements-common": "0.0.6",
     "@storybook/web-components-vite": "10.4.1",
     "@types/node": "26.6.1",
+    "lit": "3.3.3",
     "storybook": "10.4.1",
     "typescript": "6.0.3",
     "vite": "8.0.15",
+    "vite-plugin-dts": "5.0.3",
     "vitest": "5.0.1"
   }
 }

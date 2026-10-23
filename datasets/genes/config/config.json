@@ -1,156 +1,183 @@
 {
-    "filters":[
+    "info": {
+        "id": "gene_view",
+        "name": "Gene dataset",
+        "source": "genes",
+        "url_name": "genes",
+        "include_remaining_columns": true
+    },
+    "filters": [
         {
-            "id":"species_scientific_name",
-            "target_column":"slice_region_assembly_organism_scientific_name",
-            "label":"Species Scientific Name",
-            "title":"Species Scientific Name",
-            "example":"Mus musculus",
-            "type" : "user_list",
+            "id": "species_scientific_name",
+            "target_column": "slice_region_assembly_organism_scientific_name",
+            "label": "slice_region_assembly_organism_scientific_name",
+            "title": "Species",
+            "type": "fixed_list"
         },
         {
-            "id":"gene_symbol",
-            "target_column":"symbol",
-            "label":"Gene Symbol",
-            "title":"Gene Symbol",
-            "example":"PPP2R2A",
-            "type" : "user_list",
-            "filter_labels":"lower(class)"
+            "id": "genome",
+            "target_column": "genome_uuid",
+            "label": "concat(slice_region_assembly_organism_scientific_name, ' - ', slice_region_assembly_accession_id)",
+            "title": "Genome",
+            "type": "fixed_list"
         },
         {
-            "id":"stable_id",
-            "target_column":"stable_id",
-            "label":"Stable Id",
-            "title":"Gene Stable Id",
-            "example":"ENSBTAG00070000112.1",
-            "type":"match"
+            "id": "gene_symbol",
+            "target_column": "symbol",
+            "label": "Gene symbol",
+            "title": "Gene symbol",
+            "example": "PPP2R2A",
+            "type": "match"
         },
         {
-            "id":"gene_type",
-            "target_column":"type",
-            "label":"Gene Type",
-            "title":"Gene Type",
-            "type" : "fixed_list",
-            "filter_labels":"type"
+            "id": "stable_id",
+            "target_column": "stable_id",
+            "label": "Stable ID",
+            "title": "Stable ID",
+            "example": "ENSBTAG00070000112.1",
+            "type": "match"
         },
         {
-            "id":"taxon",
-            "target_column":"slice_region_assembly_organism_species_taxon_id",
-            "label":"Taxon",
-            "title":"Taxon",
-            "type":"match",
-            "example":"9606"
+            "id": "gene_type",
+            "target_column": "so_term",
+            "label": "so_term",
+            "title": "Gene type",
+            "type": "fixed_list"
         },
         {
-            "id":"topology",
-            "target_column":"slice_region_topology",
-            "label":"Region Topology",
-            "title":"Region Topology",
-            "type":"fixed_list",
-            "filter_labels":"slice_region_topology"
+            "id": "taxon",
+            "target_column": "slice_region_assembly_organism_species_taxon_id",
+            "label": "Taxon ID",
+            "title": "Taxon ID",
+            "type": "match",
+            "example": "9606"
         },
         {
-            "id":"region_name",
-            "target_column":"slice_region_name",
-            "label":"Region names",
-            "title":"Region names",
-            "type":"user_list",
+            "id": "topology",
+            "target_column": "slice_region_topology",
+            "label": "slice_region_topology",
+            "title": "Region topology",
+            "type": "fixed_list"
         },
         {
-            "id":"location",
-            "target_column":"location",
-            "label":"Location",
-            "title":"Location",
-            "example":"1:100-10000",
-            "regex":"(?P<region>[^:]+):(?P<start>\\d+)-(?P<end>\\d+)",
-            "type":"regex",
+            "id": "region_name",
+            "target_column": "slice_region_name",
+            "label": "Region name",
+            "title": "Region name",
+            "type": "match",
+            "example": "X"
+        },
+        {
+            "id": "strand",
+            "target_column": "slice_strand_code",
+            "label": "slice_strand_code",
+            "title": "Strand",
+            "type": "fixed_list"
+        },
+        {
+            "id": "location",
+            "target_column": "location",
+            "label": "Location",
+            "title": "Location",
+            "example": "1:100-10000",
+            "regex": "(?P<region>[^:]+):(?P<start>\\d+)-(?P<end>\\d+)",
+            "type": "regex",
             "extras": {
-                "fields":[
+                "fields": [
                     {
-                        "column":"slice_region_name",
-                        "regex_name":"region",
-                        "match":"="
+                        "column": "slice_region_name",
+                        "regex_name": "region",
+                        "match": "="
                     },
                     {
-                        "column":"slice_location_end",
-                        "regex_name":"start",
-                        "match":">="
-	               },
-	               {
-                        "column":"slice_location_start",
-                        "regex_name":"end",
-                        "match":"<="
-	               }
+                        "column": "slice_location_end",
+                        "regex_name": "start",
+                        "match": ">="
+                    },
+                    {
+                        "column": "slice_location_start",
+                        "regex_name": "end",
+                        "match": "<="
+                    }
                 ]
             }
         }
     ],
-    "views":[
+    "filter_groups": [
         {
-            "id" : "gene_view",
-            "name":"Gene dataset",
-            "source":"genes",
-            "url_name":"genes",
-            "include_remaining_columns" : true,
-            "filter_groups" : [
+            "group_id": "genomes",
+            "group_label": "Genomes",
+            "filters": [
                 {
-                    "group_id": "gene",
-                    "group_label": "Genes",
-                    "filters":[
-                        { "id" : "gene_symbol" },
-                        { "id" : "stable_id" },
-                        { "id" : "gene_type"}
-                    ]
+                    "id": "species_scientific_name"
                 },
                 {
-                    "group_id":"species",
-                    "group_label":"Species",
-                    "filters":[
-                        { "id": "species_scientific_name" },
-                        { "id": "taxon" }
-                    ]
+                    "id": "genome"
                 },
                 {
-                    "group_id":"genomics",
-                    "group_label":"Genomics",
-                    "filters":[
-                        {"id": "topology"},
-                        {"id":"region_name"},
-                        {"id":"location"}
-                        
-                    ]
+                    "id": "taxon"
                 }
-            ],
-            "columns":[
-                { "name": "symbol" },
-                { "name": "name" },
-                { "name": "gen_alt_symbols" }
+            ]
+        },
+        {
+            "group_id": "filters",
+            "group_label": "Filters",
+            "filters": [
+                {
+                    "id": "gene_type"
+                },
+                {
+                    "id": "gene_symbol"
+                },
+                {
+                    "id": "stable_id"
+                },
+                {
+                    "id": "region_name"
+                },
+                {
+                    "id": "topology"
+                },
+                {
+                    "id": "location"
+                },
+                {
+                    "id": "strand"
+                }
             ]
         }
     ],
-    "columns":{
-        "gene_view":{
-            "metadata_name_url":{
-                "sortable": false,
-                "label" : "Metadata Details",
-                "type":"link",
-                "url":"{}"
-            },
-            "metadata_name_source_url":{
-                "sortable": false,
-                "label" : "Metadata Source",
-                "type":"link",
-                "url":"{}"
-            },
-            "gen_alt_symbols":{
-                "sortable":false,
-                "label": "Alternative Symbols",
-                "type":"string",
-                "delimiter":","
-            },
-            "alternative_symbols":{
-                "hidden":true
-            }
+    "columns": [
+        {
+            "name": "symbol"
+        },
+        {
+            "name": "name"
+        },
+        {
+            "name": "gen_alt_symbols",
+            "sortable": false,
+            "label": "Alternative Symbols",
+            "type": "string",
+            "delimiter": ","
+        },
+        {
+            "name": "metadata_name_url",
+            "sortable": false,
+            "label": "Metadata Details",
+            "type": "link",
+            "url": "{}"
+        },
+        {
+            "name": "metadata_name_source_url",
+            "sortable": false,
+            "label": "Metadata Source",
+            "type": "link",
+            "url": "{}"
+        },
+        {
+            "name": "alternative_symbols",
+            "hidden": true
         }
-    }
+    ]
 }
