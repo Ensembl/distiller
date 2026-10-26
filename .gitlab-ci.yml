@@ -21,7 +21,6 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   NFS_SERVER: ${HL_NFS_SERVER_CODON}
   NFS_PATH: ${HL_NFS_PATH_CODON}
-  BE_MANIFEST_DIR: "ensembl-distiller"
 
 #Build docker image
 Docker:
@@ -58,10 +57,6 @@ Deploy Review:
   variables:
     AGENT: ${DEV_AGENT}
     REVIEW_NS: ${CI_COMMIT_REF_SLUG}
-    BE_MANIFEST_DIR: "ensembl-distiller"
-    REVIEW_CONFIGMAP_FILE: "ensembl-distiller.config"
-    REVIEW_SECRET_FILE: ""
-    BACKEND_APP: "ensembl-distiller"
   environment:
     name: development
     url: https://${REVIEW_NS}.review.ensembl.org
