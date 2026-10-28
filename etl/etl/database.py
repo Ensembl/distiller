@@ -50,7 +50,11 @@ ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter
 VIEW_DATASET = """
 CREATE OR REPLACE VIEW dataset_view AS
 SELECT
-{{"style":struct_extract(COLUMNS(*),'style') , 'value':struct_extract(COLUMNS(*),'value')}}
+    __distiller_row_id,
+    {{
+        "style": struct_extract(COLUMNS(* EXCLUDE (__distiller_row_id)), 'style'),
+        "value": struct_extract(COLUMNS(* EXCLUDE (__distiller_row_id)), 'value')
+    }}
 FROM dataset_{};
 """
 
@@ -137,17 +141,20 @@ class DatabaseConfig(BaseDatabase):
             f"{n} STRUCT(style VARCHAR, raw VARCHAR, value JSON)" for n in col_names
         ]
         # create table
-        create_table = f"CREATE TABLE dataset_{view.source} ({', '.join(col_structs)});"
+        create_table = f"CREATE TABLE dataset_{view.source} (__distiller_row_id BIGINT PRIMARY KEY, {', '.join(col_structs)});"
         conn.execute(create_table)
 
         # insert statement
-        insert_data = f"INSERT INTO dataset_{view.source} ({', '.join(col_names)}) VALUES({col_args})"
+        insert_data = f"INSERT INTO dataset_{view.source} (__distiller_row_id, {', '.join(col_names)}) VALUES(?, {col_args})"
 
         # get values to insert
-        select_data = f"SELECT {', '.join(col_names)} FROM {view.source}"
+        select_data = f"SELECT __distiller_row_id, {', '.join(col_names)} FROM {view.source}"
         query = conn.sql(select_data)
         rows = query.fetchall()
         for r in rows:
+            row_id = r[0]
+            r = r[1:]
+
             row_args = [
                 {
                     "style": col_lookup[col_names[x]].type,
@@ -163,7 +170,7 @@ class DatabaseConfig(BaseDatabase):
             ]
 
             # insert value
-            conn.execute(insert_data, row_args)
+            conn.execute(insert_data, [row_id, *row_args])
 
         # create view
         print(VIEW_DATASET.format(view.source))
@@ -236,7 +243,7 @@ class DatabaseConfig(BaseDatabase):
 
             for f in list(filter(lambda f: f.id in selected_filters, self.filters)):
                 filter_db_id = self.next_id("filter")
-                filter_sql = "INSERT INTO filter (filter_id, filter_group_id, id, label, title, example, filter_type, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
+                filter_sql = "INSERT INTO filter (filter_id, filter_group_id, id, label, title, example, filter_type, target_column, rank, min, max, extras, regex) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"  # noqa: E501
                 # Generate a unique DB id by prefixing with the view id
                 db_filter_id = f"{f.id}"
 
@@ -258,6 +265,7 @@ class DatabaseConfig(BaseDatabase):
                     f.title,
                     f.example,
                     f.type,
+                    f.target_column,
                     f.rank,
                     f.min,
                     f.max,
@@ -358,8 +366,22 @@ class Database(BaseDatabase):
     def load_parquet(self, path: Path) -> None:
         table_name = path.stem
         logging.info(f"Loading parquet {path!r} into table {table_name!r}")
+
+        columns = self.conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [str(path)]).fetchall()
+        if any(column[0].lower() == "__distiller_row_id" for column in columns):
+            raise ValueError("Source data contains reserved column __distiller_row_id")
+
+        quoted_table = '"' + table_name.replace('"', '""') + '"'
+
         self.conn.execute(
-            f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{path}')"
+            f"""
+            CREATE TABLE {quoted_table} AS
+            SELECT
+              row_number() OVER () AS __distiller_row_id,
+              *
+            FROM read_parquet(?)
+            """,
+            [str(path)]
         )
 
     def get_parquet_paths(self) -> Iterator[Path]:
