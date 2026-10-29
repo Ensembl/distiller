@@ -60,10 +60,10 @@ def generate_records_query(
         column_call = "default_columns()"
 
     sort_var = ""
-    sort_stmt = "ORDER BY __distiller_row_id"
+    sort_stmt = "ORDER BY __internal_row_id"
     if sort_by:
         sort_var = f"SET VARIABLE sort_by = list_first(column_mapper([{sort_by}]));"
-        sort_stmt = f"ORDER BY COLUMNS(getvariable('sort_by')) {'ASC' if asc else 'DESC'} NULLS LAST, __distiller_row_id"
+        sort_stmt = f"ORDER BY COLUMNS(getvariable('sort_by')) {'ASC' if asc else 'DESC'} NULLS LAST, __internal_row_id"
 
     page = max(page, 1)
     page_size = max(page_size, 1)
@@ -77,7 +77,7 @@ def generate_records_query(
 
     WITH {cte_prefix}
     matched_rows AS (
-        SELECT __distiller_row_id
+        SELECT __internal_row_id
         FROM query_table(?)
     )
     SELECT {{
@@ -89,8 +89,8 @@ def generate_records_query(
         "rows": ARRAY(
             SELECT struct_pack(*COLUMNS(getvariable('selected_cols')))
             FROM dataset_view
-            WHERE __distiller_row_id IN (
-                SELECT __distiller_row_id
+            WHERE __internal_row_id IN (
+                SELECT __internal_row_id
                 FROM matched_rows
             )
             {sort_stmt}

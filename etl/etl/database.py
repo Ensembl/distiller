@@ -50,10 +50,10 @@ ADD {} struct(label VARCHAR, type VARCHAR, sortable BOOL, url VARCHAR, delimiter
 VIEW_DATASET = """
 CREATE OR REPLACE VIEW dataset_view AS
 SELECT
-    __distiller_row_id,
+    __internal_row_id,
     {{
-        "style": struct_extract(COLUMNS(* EXCLUDE (__distiller_row_id)), 'style'),
-        "value": struct_extract(COLUMNS(* EXCLUDE (__distiller_row_id)), 'value')
+        "style": struct_extract(COLUMNS(* EXCLUDE (__internal_row_id)), 'style'),
+        "value": struct_extract(COLUMNS(* EXCLUDE (__internal_row_id)), 'value')
     }}
 FROM dataset_{};
 """
@@ -141,14 +141,14 @@ class DatabaseConfig(BaseDatabase):
             f"{n} STRUCT(style VARCHAR, raw VARCHAR, value JSON)" for n in col_names
         ]
         # create table
-        create_table = f"CREATE TABLE dataset_{view.source} (__distiller_row_id BIGINT PRIMARY KEY, {', '.join(col_structs)});"
+        create_table = f"CREATE TABLE dataset_{view.source} (__internal_row_id BIGINT PRIMARY KEY, {', '.join(col_structs)});"
         conn.execute(create_table)
 
         # insert statement
-        insert_data = f"INSERT INTO dataset_{view.source} (__distiller_row_id, {', '.join(col_names)}) VALUES(?, {col_args})"
+        insert_data = f"INSERT INTO dataset_{view.source} (__internal_row_id, {', '.join(col_names)}) VALUES(?, {col_args})"
 
         # get values to insert
-        select_data = f"SELECT __distiller_row_id, {', '.join(col_names)} FROM {view.source}"
+        select_data = f"SELECT __internal_row_id, {', '.join(col_names)} FROM {view.source}"
         query = conn.sql(select_data)
         rows = query.fetchall()
         for r in rows:
@@ -368,8 +368,8 @@ class Database(BaseDatabase):
         logging.info(f"Loading parquet {path!r} into table {table_name!r}")
 
         columns = self.conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [str(path)]).fetchall()
-        if any(column[0].lower() == "__distiller_row_id" for column in columns):
-            raise ValueError("Source data contains reserved column __distiller_row_id")
+        if any(column[0].lower() == "__internal_row_id" for column in columns):
+            raise ValueError("Source data contains reserved column __internal_row_id")
 
         quoted_table = '"' + table_name.replace('"', '""') + '"'
 
@@ -377,7 +377,7 @@ class Database(BaseDatabase):
             f"""
             CREATE TABLE {quoted_table} AS
             SELECT
-              row_number() OVER () AS __distiller_row_id,
+              row_number() OVER () AS __internal_row_id,
               *
             FROM read_parquet(?)
             """,

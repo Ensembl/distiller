@@ -44,7 +44,7 @@ def conn(monkeypatch):
                 (5, 'g1'), (5, 'g2'), (5, 'g3');
 
             CREATE TABLE genes (
-                __distiller_row_id INTEGER, symbol VARCHAR, so_term VARCHAR,
+                __internal_row_id INTEGER, symbol VARCHAR, so_term VARCHAR,
                 genome_uuid VARCHAR, slice_region_name VARCHAR,
                 slice_location_start VARCHAR, slice_location_end VARCHAR
             );
@@ -58,9 +58,9 @@ def conn(monkeypatch):
             CREATE TABLE dataset (source VARCHAR);
             INSERT INTO dataset VALUES ('genes');
             CREATE VIEW dataset_view AS
-            SELECT __distiller_row_id, symbol,
+            SELECT __internal_row_id, symbol,
                    {'style': 'string', 'value': so_term} AS so_term,
-                   __distiller_row_id AS row_id
+                   __internal_row_id AS row_id
             FROM genes;
             CREATE VIEW column_details AS
             SELECT name, {'id': id, 'name': name} AS details
@@ -145,7 +145,7 @@ def test_supported_filter_types(fetch_records, spec, expected):
 
 def test_prefix_treats_wildcards_literally(conn, fetch_records):
     conn.executemany(
-        "INSERT INTO genes (__distiller_row_id, symbol) VALUES (?, ?)",
+        "INSERT INTO genes (__internal_row_id, symbol) VALUES (?, ?)",
         [(6, "BR_%literal"), (7, "BRAXliteral")],
     )
     assert fetch_records([("symbol_prefix", "BR_%")])["rows"] == [{"row_id": 6}]
