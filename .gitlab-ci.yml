@@ -7,8 +7,14 @@ include:
       - 'deploy/.deploy-main-template.yaml'
       - 'deploy/.deploy-review-template.yaml'
       - 'review/.setup-BE-review-template.yaml'
+  - template: Jobs/Dependency-Scanning.latest.gitlab-ci.yml
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Container-Scanning.gitlab-ci.yml
 
 stages:
+  - test
+  - secret-detection
   - setup
   - build
   - deploy-review
@@ -21,6 +27,22 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   NFS_SERVER: ${HL_NFS_SERVER_CODON}
   NFS_PATH: ${HL_NFS_PATH_CODON}
+  DS_ENFORCE_NEW_ANALYZER: 'true'
+  GITLAB_ADVANCED_SAST_ENABLED: 'true'
+
+# Static Application Security Testing (SAST) Jobs
+sast:
+  stage: test
+  artifacts:
+    name: sast
+    paths:
+      - gl-sast-report.json
+    reports:
+      sast: gl-sast-report.json
+    when: always
+
+secret_detection:
+  stage: secret-detection
 
 #Build docker image
 Docker:
