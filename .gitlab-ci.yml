@@ -13,10 +13,10 @@ include:
   - template: Jobs/Container-Scanning.gitlab-ci.yml
 
 stages:
-  - test
   - secret-detection
   - setup
   - build
+  - test
   - deploy-review
   - deploy-test
   - deploy-stage
