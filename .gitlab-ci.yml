@@ -29,6 +29,7 @@ variables:
   NFS_PATH: ${HL_NFS_PATH_CODON}
   DS_ENFORCE_NEW_ANALYZER: 'true'
   GITLAB_ADVANCED_SAST_ENABLED: 'true'
+  SECURE_LOG_LEVEL: 'debug'
 
 # Static Application Security Testing (SAST) Jobs
 sast:
