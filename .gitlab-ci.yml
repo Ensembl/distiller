@@ -7,10 +7,7 @@ include:
       - 'deploy/.deploy-main-template.yaml'
       - 'deploy/.deploy-review-template.yaml'
       - 'review/.setup-BE-review-template.yaml'
-  - template: Jobs/Dependency-Scanning.latest.gitlab-ci.yml
-  - template: Jobs/SAST.gitlab-ci.yml
-  - template: Jobs/Secret-Detection.gitlab-ci.yml
-  - template: Jobs/Container-Scanning.gitlab-ci.yml
+      - 'security-scan/.ensembl-security-jobs.yaml'
 
 stages:
   - security-scan
@@ -30,23 +27,6 @@ variables:
   DS_ENFORCE_NEW_ANALYZER: 'true'
   GITLAB_ADVANCED_SAST_ENABLED: 'true'
 
-# Static Application Security Testing (SAST) Jobs
-sast:
-  stage: security-scan
-  artifacts:
-    name: sast
-    paths:
-      - gl-sast-report.json
-    reports:
-      sast: gl-sast-report.json
-    when: always
-
-secret_detection:
-  stage: security-scan
-
-dependency_scanning:
-  stage: security-scan
-
 #Build docker image
 Docker:
   stage: build
@@ -60,15 +40,6 @@ Docker:
     - docker push ${DOCKER_IMAGE}
     - docker rmi ${DOCKER_IMAGE}
     - docker logout $CI_REGISTRY
-
-# Container Scanning
-container_scanning:
-  stage: container-scan
-  needs: ["Docker"]
-  variables:
-    CS_IMAGE: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
-    CS_REGISTRY_USER: ${CI_REGISTRY_USER}
-    CS_REGISTRY_PASSWORD: ${CI_REGISTRY_PASSWORD}
 
 # Jobs extended from templates to setup and deploy review environment, dev, staging, prod and fallback environments
 # Create a review deployment (runs once per new branch)
