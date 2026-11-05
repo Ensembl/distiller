@@ -13,8 +13,7 @@ include:
   - template: Jobs/Container-Scanning.gitlab-ci.yml
 
 stages:
-  - secret-detection
-  - test
+  - security-scan
   - setup
   - build
   - security
@@ -33,7 +32,7 @@ variables:
 
 # Static Application Security Testing (SAST) Jobs
 sast:
-  stage: test
+  stage: security-scan
   artifacts:
     name: sast
     paths:
@@ -43,7 +42,10 @@ sast:
     when: always
 
 secret_detection:
-  stage: secret-detection
+  stage: security-scan
+
+dependency_scanning:
+  stage: security-scan
 
 #Build docker image
 Docker:
