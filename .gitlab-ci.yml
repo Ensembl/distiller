@@ -47,6 +47,9 @@ secret_detection:
 dependency_scanning:
   stage: security-scan
 
+container_scanning:
+  stage: container-scan
+
 #Build docker image
 Docker:
   stage: build
