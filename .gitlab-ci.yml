@@ -16,7 +16,7 @@ stages:
   - security-scan
   - setup
   - build
-  - security
+  - container-scan
   - deploy-review
   - deploy-test
   - deploy-stage
