@@ -52,7 +52,7 @@ Setup Review:
     AGENT: ${DEV_AGENT}
     DEV_NS: ${DEV_NS}
     REVIEW_NS: ${CI_COMMIT_REF_SLUG}
-    BE_INGRESS: ""
+    BE_INGRESS: ensembl-distiller-ingress-${CI_COMMIT_REF_SLUG}
 
 # Deploy review environment
 Deploy Review:
