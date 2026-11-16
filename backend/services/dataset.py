@@ -3,7 +3,7 @@ import re
 
 from core.database import get_db_connection
 from core.config import get_dataset_path
-from typing import List
+from typing import Any, List
 from fastapi import HTTPException
 from models.payload import Filter, Payload
 
@@ -110,85 +110,47 @@ def generate_records_query(
     return sql
 
 
-def validate_dataset_filters(conn, filters: List[Filter]) -> dict[str, dict[str, str]]:
-    """
-    Validates the filters for a given dataset
-    """
+def validate_dataset_filters(conn, filters: List[Filter]) -> dict[str, dict[str, Any]]:
+    """Resolve metadata once and validate request values against ETL-checked definitions."""
     if not filters:
         return {}
 
-    rows = conn.execute("SELECT id, filter_type, target_column FROM filter").fetchall()
+    rows = conn.execute(
+        "SELECT id, filter_type, target_column, regex, extras FROM filter WHERE id IN ?",
+        [[f.filter_id for f in filters]],
+    ).fetchall()
     definitions = {
-        filter_id: {"type": filter_type, "target_column": target_column}
-        for filter_id, filter_type, target_column in rows
+        filter_id: {"type": filter_type, "target_column": target_column,
+                    "regex": pattern, "extras": extras}
+        for filter_id, filter_type, target_column, pattern, extras in rows
     }
-    validated_definitions = {}
-
     for f in filters:
         definition = definitions.get(f.filter_id)
-
-        if not definition:
+        if definition is None:
             raise HTTPException(status_code=422, detail=f"Unknown filter_id: {f.filter_id}")
 
         filter_type = definition["type"]
         if filter_type in ("fixed_list", "user_list"):
             if not isinstance(f.filter_value, list):
                 raise HTTPException(status_code=422, detail=f"Filter '{f.filter_id}' requires a list of values")
-
-            # Validate that the provided filter values are valid for the given filter_id
-            if filter_type == "fixed_list":
-                rows = conn.execute(
-                    """
-                    SELECT fv.value
-                    FROM filter_value AS fv
-                    JOIN filter AS f
-                      ON f.filter_id = fv.filter_id
-                    WHERE f.id = ?
-                    """,
-                    [f.filter_id],
-                ).fetchall()
-
-                allowed_values = {row[0] for row in rows}
-                invalid_values = [value for value in f.filter_value if value not in allowed_values]
-
-                if invalid_values:
-                    raise HTTPException(status_code=422, detail=f"Filter '{f.filter_id}' has invalid values: {invalid_values}")
         elif filter_type in ("match", "prefix", "regex"):
             if not isinstance(f.filter_value, str):
                 raise HTTPException(status_code=422, detail=f"Filter '{f.filter_id}' requires a single string value")
-
-            # Validate that the provided filter value is valid for the given filter_id
             if filter_type == "regex":
-                row = conn.execute("SELECT regex FROM filter WHERE id = ?", [f.filter_id]).fetchone()
-
-                pattern = row[0] if row else None
-                if not pattern:
-                    raise RuntimeError(f"Missing regex pattern for filter '{f.filter_id}'")
-
-                try:
-                    compiled_pattern = re.compile(pattern)
-                except re.error as e:
-                    raise RuntimeError(f"Invalid regex pattern for filter '{f.filter_id}': {e}")
-
-                if compiled_pattern.fullmatch(f.filter_value) is None:
-                    raise HTTPException(status_code=422, detail=f"Filter '{f.filter_id}' value '{f.filter_value}' does not match the required regex pattern")
+                definition["arguments"] = get_regex_filter_arguments(f, definition)
         else:
             raise HTTPException(status_code=422, detail=f"Filter '{f.filter_id}' has unsupported type '{filter_type}'")
-
-        validated_definitions[f.filter_id] = definition
-
-    return validated_definitions
+    return definitions
 
 
-def generate_filter_ctes(conn, source_table: str, filters: List[Filter], definitions: dict[str, dict[str, str]]) -> tuple[str, List[object], str]:
+def generate_filter_ctes(source_table: str, filters: List[Filter], definitions: dict[str, dict[str, Any]]) -> tuple[str, List[object], str]:
     """
     Generate Common Table Expressions (CTEs) for the given filters.
 
     Args:
-        conn: Connection object to the database.
         source_table (str): The name of the source table to filter.
         filters (List[Filter]): A list of Filter objects to apply.
-        definitions (dict[str, dict[str, str]]): A dictionary containing filter definitions.
+        definitions (dict[str, dict[str, Any]]): A dictionary containing filter definitions.
 
     Returns:
         tuple[str, List[object], str]: A tuple containing the CTE string, the list of parameters, and the name of the final table.
@@ -228,7 +190,7 @@ def generate_filter_ctes(conn, source_table: str, filters: List[Filter], definit
             macro = '"' + macro_name.replace('"', '""') + '"'
             arguments = [
                 previous_table,
-                *get_regex_filter_arguments(conn, f),
+                *definition["arguments"],
             ]
         else:
             raise HTTPException(status_code=422, detail=f"Filtering with type '{filter_type}' is not supported yet")
@@ -243,34 +205,10 @@ def generate_filter_ctes(conn, source_table: str, filters: List[Filter], definit
     return ",\n".join(ctes), parameters, previous_table
 
 
-def get_regex_filter_arguments(conn, f: Filter) -> List[object]:
-    """
-    Get the arguments for a regex filter based on its configuration and the provided filter value.
-
-    Args:
-        conn: The database connection to use for fetching the filter configuration.
-        f (Filter): The Filter object containing the filter ID and value.
-
-    Returns:
-        List[object]: A list of arguments extracted from the filter value according to the regex configuration.
-
-    Raises:
-        RuntimeError: If the filter configuration is missing or incomplete.
-        HTTPException: If the filter value does not match the required format or constraints.
-    """
-    # Fetch the regex pattern and extra configuration
-    row = conn.execute("SELECT regex, extras FROM filter WHERE id = ?", [f.filter_id]).fetchone()
-    if row is None:
-        raise RuntimeError(f"Missing configuration for filter '{f.filter_id}'")
-
-    pattern, extras_json = row
-    extras = json.loads(extras_json)
-    fields = extras.get("fields")
-    if not fields:
-        raise RuntimeError(f"Missing regex fields for filter '{f.filter_id}'")
-
-    # Match the filter value against the regex pattern
-    match = re.fullmatch(pattern, f.filter_value)
+def get_regex_filter_arguments(f: Filter, definition: dict[str, Any]) -> List[object]:
+    """Parse user input once; regex syntax and field configuration are checked by ETL."""
+    fields = json.loads(definition["extras"])["fields"]
+    match = re.fullmatch(definition["regex"], f.filter_value)
     if match is None:
         raise HTTPException(status_code=422, detail=f"Filter '{f.filter_id}' does not match the required format")
 
@@ -334,7 +272,7 @@ def records(dataset_id: str, payload: Payload | None = None):
             raise RuntimeError("Dataset source metadata is missing")
         source_table = source_row[0]
 
-        filter_ctes, parameters, final_table = generate_filter_ctes(conn, source_table, filters, filter_definitions)
+        filter_ctes, parameters, final_table = generate_filter_ctes(source_table, filters, filter_definitions)
 
         cols = []
         page = 1

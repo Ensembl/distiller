@@ -188,12 +188,11 @@ def test_removing_filters_restores_matches_across_genomes(fetch_records):
         ("unknown_filter", "BRCA1"),
         ("gene_type", "protein_coding"),
         ("gene_symbol", ["BRCA1"]),
-        ("genome", ["protein_coding"]),
         ("location", "1:100-200junk"),
         ("location", "1:200-100"),
         ("location", "1:1-2147483648"),
     ],
-    ids=["unknown-id", "list-required", "string-required", "invalid-option",
+    ids=["unknown-id", "list-required", "string-required",
          "location-format", "reversed-location", "coordinate-overflow"],
 )
 def test_invalid_filters_return_422(fetch_records, spec):
@@ -251,13 +250,34 @@ def test_column_selection_preserves_display_cells(fetch_records, columns):
     assert result["meta"]["total_hits"] == 1
 
 
-def test_invalid_regex_configuration_is_a_server_error(conn, fetch_records):
-    conn.execute("UPDATE filter SET regex = '[' WHERE id = 'location'")
-    with pytest.raises(RuntimeError, match="Invalid regex pattern"):
-        fetch_records([("location", "1:100-200")])
+@pytest.mark.parametrize("values,expected", [
+    (["unknown"], []),
+    (["g1", "unknown"], [1, 2]),
+    (["g1', 'g2'); DROP TABLE genes; --"], []),
+])
+def test_fixed_list_values_are_search_terms(conn, fetch_records, values, expected):
+    # Options are UI metadata, not a required lookup during request validation.
+    conn.execute("DROP TABLE filter_value")
+    result = fetch_records([("genome", values)])
+    assert result["rows"] == [{"row_id": i} for i in expected]
+    assert result["meta"]["total_hits"] == len(expected)
+    assert conn.execute("SELECT count(*) FROM genes").fetchone()[0] == 5
 
 
 def test_query_failure_still_closes_connection(conn, fetch_records):
     conn.execute("DROP VIEW dataset_view")
     with pytest.raises(duckdb.Error):
         fetch_records()
+
+def test_metadata_loaded_once_and_location_parsed_once(conn, monkeypatch):
+    from unittest.mock import Mock
+
+    tracked_conn = Mock(wraps=conn)
+    parser = Mock(wraps=dataset_service.re.fullmatch)
+    monkeypatch.setattr(dataset_service.re, "fullmatch", parser)
+    filters = [Filter(filter_id="genome", filter_value=["g1"]),
+               Filter(filter_id="location", filter_value="1:100-200")]
+    definitions = dataset_service.validate_dataset_filters(tracked_conn, filters)
+    dataset_service.generate_filter_ctes("genes", filters, definitions)
+    assert tracked_conn.execute.call_count == 1
+    assert parser.call_count == 1

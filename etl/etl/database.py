@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 schema_version = "v2"
 
 REGEX_MACRO_TEMPLATE = """
-CREATE OR REPLACE MACRO regex_{}_filter(table_name, {}) AS TABLE(
+CREATE OR REPLACE MACRO {}(table_name, {}) AS TABLE(
     SELECT *
     FROM query_table(table_name)
     WHERE {}
@@ -194,13 +194,14 @@ class DatabaseConfig(BaseDatabase):
             if field.match != "=":  # force column to be a int when comparing size
                 modifier = "::int"
 
-            inputs.append(f"in_{field.regex_name}")
-            matches.append(
-                f"{field.column}{modifier} {field.match} in_{field.regex_name}"
-            )
+            argument = '"' + ("in_" + field.regex_name).replace('"', '""') + '"'
+            column = '"' + field.column.replace('"', '""') + '"'
+            inputs.append(argument)
+            matches.append(f"{column}{modifier} {field.match} {argument}")
 
         macro = REGEX_MACRO_TEMPLATE.format(
-            filter_id, ",".join(inputs), " AND ".join(matches)
+            '"' + ("regex_" + filter_id + "_filter").replace('"', '""') + '"',
+            ",".join(inputs), " AND ".join(matches)
         )
         print("Creating REGEX macro -------------------")
         print(macro)
