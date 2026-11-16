@@ -373,11 +373,14 @@ class Database(BaseDatabase):
 
         quoted_table = '"' + table_name.replace('"', '""') + '"'
 
+        # Create a sequence for the internal row ID
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS __internal_row_id_seq START 1")
+
         self.conn.execute(
             f"""
             CREATE TABLE {quoted_table} AS
             SELECT
-              row_number() OVER () AS __internal_row_id,
+              nextval('__internal_row_id_seq') AS __internal_row_id,
               *
             FROM read_parquet(?)
             """,
