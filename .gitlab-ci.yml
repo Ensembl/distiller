@@ -62,7 +62,6 @@ Deploy Review:
     AGENT: ${DEV_AGENT}
     REVIEW_NS: ${CI_COMMIT_REF_SLUG}
   environment:
-    name: development
     url: https://${REVIEW_NS}.review.ensembl.org
     on_stop: Stop Review
 
@@ -79,7 +78,6 @@ Stop Review:
       when: manual
       allow_failure: true
   environment:
-    name: development
     action: stop
 
 # Deploy Dev
