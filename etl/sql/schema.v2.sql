@@ -23,6 +23,7 @@ CREATE TABLE filter (
     "example" VARCHAR,
     "label" VARCHAR,
     filter_type VARCHAR NOT NULL,
+    target_column VARCHAR NOT NULL,
     rank INTEGER NOT NULL,
     "min" DOUBLE,
     "max" DOUBLE,
@@ -78,6 +79,7 @@ SELECT
     f."id" AS filter_name,
     f."label" AS filter_label,
     f.filter_type,
+    f.target_column,
     f."min",
     f."max",
     f.extras,
@@ -183,7 +185,7 @@ CREATE OR REPLACE MACRO select_exact_filter(table_name, column_name, selected_va
 CREATE OR REPLACE MACRO select_prefix_filter(table_name, column_name, selected_value) AS TABLE(
     SELECT *
     FROM query_table(table_name)
-    WHERE COLUMNS(column_name) LIKE concat(selected_value,'%')
+    WHERE starts_with(COLUMNS(column_name), selected_value)
 );
 
 CREATE OR REPLACE MACRO range_filter(table_name, column_name, range_start, range_end) AS TABLE(
