@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Literal, Union, Any
 
@@ -49,6 +50,28 @@ class Filter(BaseModel):
     extras: RegexExtras | None = None
     regex: str | None = None
 
+    @model_validator(mode="after")
+    def validate_definition(self):
+        if not self.id.strip() or not self.target_column.strip():
+            raise ValueError("Filter ID and target_column must not be blank")
+        if self.type is None:
+            raise ValueError(f"Filter '{self.id}' requires a type")
+        if self.type == "regex":
+            if not self.regex or not self.extras or not self.extras.fields:
+                raise ValueError(f"Filter '{self.id}' requires a regex and nonempty extras.fields")
+            try:
+                pattern = re.compile(self.regex)
+            except re.error as exc:
+                raise ValueError(f"Invalid regex pattern for filter '{self.id}': {exc}") from exc
+            names = [field.regex_name for field in self.extras.fields]
+            if len(names) != len(set(names)) or set(names) != set(pattern.groupindex):
+                raise ValueError(f"Filter '{self.id}' fields must match its named regex groups exactly")
+            if any(not field.column.strip() for field in self.extras.fields):
+                raise ValueError(f"Filter '{self.id}' regex columns must not be blank")
+        elif self.extras is not None or self.regex is not None:
+            raise ValueError(f"Filter '{self.id}' only supports regex/extras with type regex")
+        return self
+
 
 class FilterGroup(BaseModel):
     group_id: str
@@ -94,6 +117,8 @@ def validate_config(config_data: dict[str, Any]) -> bool:
     print("-----------------------------------")
     config = Config.model_validate(config_data)
     filter_names = [f.id for f in config.filters]
+    if len(filter_names) != len(set(filter_names)):
+        raise ValueError("Filter IDs must be unique")
 
     for g in config.filter_groups:
         for gf in g.filters:

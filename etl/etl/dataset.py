@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 from pathlib import Path
 
 import duckdb
@@ -9,9 +8,7 @@ from etl.models import (
     Column,
     DataSource,
     Filter,
-    RegexExtras,
     DatasetInfo,
-    Filter,
     FilterGroup,
     FIXED_LIST_FILTER_TYPE,
 )
@@ -70,7 +67,7 @@ class DatasetProcessor:
         filter_dict = {f.id: f for f in self.filters}
         with duckdb.connect() as conn:
             data_source = self.get_data_source(self.dataset.source)
-            self.validate_query_columns(self.columns, self.filters)
+            self.validate_query_columns(data_source.columns, self.filters)
             # normalised_groups = self.normalise_to_groups(view)
             group_rank = 1
             for group in self.filter_groups:
@@ -149,41 +146,17 @@ ORDER BY label ASC
     def validate_query_columns(
         self, columns: list[Column], filters: list[Filter]
     ) -> None:
-        """Validate that all query_columns referenced in filters exist in the source."""
+        """Validate filter targets against all source columns, including hidden ones."""
         if columns is None:
-            return
-
-        # available_columns = {c.name for c in dataset.columns if c.name is not None}
+            raise FilterError("Source column metadata is required for filter validation")
+        available = {column.name for column in columns}
         for filter_def in filters:
-            extra = filter_def.extras
-            if extra is None:
-                # config is only used for complex filter types such as regex
-                continue
-            elif isinstance(extra, dict):
-                raise FilterError(f"Error with extras, not parsed to a model '{extra}'")
-            elif isinstance(extra, RegexExtras):
-                if filter_def.regex is None:
-                    raise FilterError(
-                        f"Error Regex not set when extras is set! '{extra}'"
-                    )
-                regex = re.compile(filter_def.regex)
-
-                registered_regex_keys = [field.regex_name for field in extra.fields]
-                regex_keys = regex.groupindex.keys()
-                if len(registered_regex_keys) != len(regex_keys):
-                    raise FilterError(
-                        f"Filter '{filter_def.id}' regex role "
-                        "Registered REGEX keys does not match found REGEX keys,"
-                        f"registered: {len(registered_regex_keys)}, "
-                        f"found: {len(regex_keys)}"
-                    )
-
-                for pattern_name in regex_keys:
-                    if pattern_name not in registered_regex_keys:
-                        raise FilterError(
-                            f"Filter '{filter_def.id}' regex role "
-                            f"'{pattern_name}' was not registered"
-                        )
+            # Regex targets can be virtual (e.g. location); extras name the real columns.
+            targets = ([field.column for field in filter_def.extras.fields]
+                       if filter_def.type == "regex" else [filter_def.target_column])
+            missing = set(targets) - available
+            if missing:
+                raise FilterError(f"Filter '{filter_def.id}' references unknown columns: {sorted(missing)}")
 
     def _get_column_override(
         self, columns: list[Column], column_name: str
